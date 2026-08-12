@@ -4,278 +4,115 @@ import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
 from streamlit_folium import st_folium
 
-st.set_page_config(
-    page_title="CRISIS COMMAND",
-    layout="wide",
-    page_icon="🛰️",
-    initial_sidebar_state="collapsed"
-)
+st.set_page_config(page_title="CRISIS COMMAND", layout="wide", page_icon="🛰️", initial_sidebar_state="collapsed")
 
-# ─── SECTION 1: SYSTEM STYLES ────────────────────────────────────────────────
+# ─── SECTION 1: SYSTEM STYLES (ELIMINATING ALL SPACING GAPS) ───
+st.markdown("""
+    <style>
+        html, body {background-color: #262626 !important; margin: 0 !important; padding: 0 !important;}
+
+        /* =========================================================
+           REMOVE STREAMLIT HOST / TOOLBAR / BRANDING ELEMENTS
+           ========================================================= */
+        #MainMenu,
+        footer,
+        header,
+        [data-testid="stHeader"],
+        [data-testid="stToolbar"],
+        [data-testid="stToolbarActions"],
+        [data-testid="stDecoration"],
+        [data-testid="stStatusWidget"],
+        [data-testid="stAppDeployButton"],
+        [data-testid="stHeaderActionElements"],
+        div[class*="viewerBadge"],
+        div[class*="stDeployButton"],
+        div[class*="StatusWidget"],
+        div[class*="Toolbar"],
+        div[class*="Decoration"] {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            width: 0 !important;
+            height: 0 !important;
+            min-height: 0 !important;
+            pointer-events: none !important;
+        }
+
+        button[title*="Streamlit"],
+        button[aria-label*="Streamlit"],
+        a[title*="Streamlit"],
+        a[aria-label*="Streamlit"] {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
+
+        .stApp, .stAppViewContainer, .stAppViewBlockContainer, .main, .main .block-container {
+            padding: 0px !important; margin: 0px !important; max-width: 100% !important; width: 100% !important;
+            background-color: #262626 !important;
+        }
+
+        div[data-testid="stAppViewContainer"] {padding-top: 0px !important; margin-top: 0px !important; background-color: #262626 !important;}
+        div[data-testid="stAppViewContainer"] > .main {padding-top: 0px !important; margin-top: 0px !important;}
+        div[data-testid="stMainBlockContainer"] {padding-top: 0px !important; margin-top: 0px !important; background-color: #262626 !important;}
+        .main .block-container {padding-top: 0px !important; margin-top: 0px !important;}
+
+        div[data-testid="stVerticalBlock"], 
+        div[data-testid="stElementContainer"], 
+        div[data-testid="stVerticalBlockInsideExecutionFlow"] {
+            padding-left: 0rem !important; padding-right: 0rem !important;
+            margin-left: 0rem !important; margin-right: 0rem !important;
+            padding-top: 0px !important; padding-bottom: 0px !important;
+            margin-top: 0px !important; margin-bottom: 0px !important;
+            gap: 0px !important; width: 100% !important;
+            background-color: transparent !important;
+        }
+
+        [data-testid="stElementContainer"]:first-child {margin-top: 0px !important; padding-top: 0px !important;}
+        div[data-testid="stMainBlockContainer"] {padding-top: 0px !important;}
+
+        div[data-testid="stCustomComponentV1"], iframe {
+            width: 100vw !important; height: 100vh !important; 
+            margin: 0px !important; padding: 0px !important; border: none !important;
+        }
+
+        .threat-heading { color: #ffffff; font-size: 16px; line-height: 1; font-weight: 900; letter-spacing: .7px; margin: 0 0 9px 5px; text-shadow: 0 2px 5px rgba(0,0,0,.8); }
+
+        .threat-card {
+            display: block; box-sizing: border-box; min-height: 104px; width: 100%;
+            background: rgba(24, 29, 41, .98); border: 2px solid rgba(255,255,255,.12);
+            border-left: 6px solid #3182ce; border-radius: 8px; padding: 13px 18px 12px 18px;
+            box-shadow: 0 7px 28px rgba(0,0,0,.55);
+        }
+        .threat-card.media { border-left-color: #e05252; }
+        .threat-source { float: right; color: #fff; background: #3b70b4; border-radius: 5px; padding: 5px 9px; font-size: 10px; font-weight: 800; letter-spacing: .3px; }
+        .threat-card.media .threat-source { background: #6b7280; }
+        .threat-location { color: #75b9f5; font-size: 12px; line-height: 1.1; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+        .threat-card.media .threat-location { color: #ff8b8b; }
+        .threat-title { color: #ffffff; font-size: 19px; line-height: 1.18; font-weight: 800; margin-right: 120px; }
+        .threat-title a { color: #ffffff !important; text-decoration: none !important; }
+        .threat-summary { color: #aab5c7; font-size: 12px; line-height: 1.3; margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    </style>
+""", unsafe_allow_html=True)
+
+# Final app-level cover for any Streamlit branding badge that survives the
+# selectors above. This only covers the small lower-right host/badge area.
 st.markdown("""
 <style>
-
-/* =========================================================
-   GLOBAL APP BACKGROUND
-   ========================================================= */
-
-html,
-body {
-    background-color: #262626 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-}
-
-
-/* =========================================================
-   COMPLETELY HIDE STREAMLIT CHROME / BRANDING
-   ========================================================= */
-
-/* Main menu */
-#MainMenu {
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    width: 0 !important;
-    height: 0 !important;
-    pointer-events: none !important;
-}
-
-/* Footer */
-footer {
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    width: 0 !important;
-    height: 0 !important;
-    pointer-events: none !important;
-}
-
-/* Header */
-header,
-[data-testid="stHeader"] {
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    width: 0 !important;
-    height: 0 !important;
-    min-height: 0 !important;
-    pointer-events: none !important;
-}
-
-/* Toolbar */
-[data-testid="stToolbar"],
-[data-testid="stToolbarActions"] {
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    width: 0 !important;
-    height: 0 !important;
-    pointer-events: none !important;
-}
-
-/* Streamlit decoration / status elements */
-[data-testid="stDecoration"],
-[data-testid="stStatusWidget"],
-[data-testid="stAppDeployButton"],
-[data-testid="stHeaderActionElements"] {
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    width: 0 !important;
-    height: 0 !important;
-    pointer-events: none !important;
-}
-
-/* Streamlit viewer/deployment badges */
-div[class*="viewerBadge"],
-div[class*="stDeployButton"],
-div[class*="StatusWidget"],
-div[class*="Toolbar"],
-div[class*="Decoration"] {
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    width: 0 !important;
-    height: 0 !important;
-    pointer-events: none !important;
-}
-
-/* Any button/link explicitly labelled Streamlit */
-button[title*="Streamlit"],
-button[aria-label*="Streamlit"],
-a[title*="Streamlit"],
-a[aria-label*="Streamlit"] {
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
-}
-
-
-/* =========================================================
-   REMOVE ALL STREAMLIT LAYOUT SPACING
-   ========================================================= */
-
-.stApp,
-.stAppViewContainer,
-.stAppViewBlockContainer,
-.main,
-.main .block-container {
-    padding: 0 !important;
-    margin: 0 !important;
-    max-width: 100% !important;
-    width: 100% !important;
-    background-color: #262626 !important;
-}
-
-div[data-testid="stAppViewContainer"] {
-    padding-top: 0 !important;
-    margin-top: 0 !important;
-    background-color: #262626 !important;
-}
-
-div[data-testid="stAppViewContainer"] > .main {
-    padding-top: 0 !important;
-    margin-top: 0 !important;
-}
-
-div[data-testid="stMainBlockContainer"] {
-    padding-top: 0 !important;
-    margin-top: 0 !important;
-    background-color: #262626 !important;
-}
-
-.main .block-container {
-    padding-top: 0 !important;
-    margin-top: 0 !important;
-}
-
-
-/* =========================================================
-   STREAMLIT INTERNAL CONTAINERS
-   ========================================================= */
-
-div[data-testid="stVerticalBlock"],
-div[data-testid="stElementContainer"],
-div[data-testid="stVerticalBlockInsideExecutionFlow"] {
-    padding-left: 0 !important;
-    padding-right: 0 !important;
-    margin-left: 0 !important;
-    margin-right: 0 !important;
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
-    margin-top: 0 !important;
-    margin-bottom: 0 !important;
-    gap: 0 !important;
-    width: 100% !important;
-    background-color: transparent !important;
-}
-
-[data-testid="stElementContainer"]:first-child {
-    margin-top: 0 !important;
-    padding-top: 0 !important;
-}
-
-
-/* =========================================================
-   FOLIUM / MAP IFRAME
-   ========================================================= */
-
-div[data-testid="stCustomComponentV1"],
-iframe {
-    width: 100vw !important;
-    height: 100vh !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    border: none !important;
-}
-
-
-/* =========================================================
-   THREAT CARDS
-   ========================================================= */
-
-.threat-heading {
-    color: #ffffff;
-    font-size: 16px;
-    line-height: 1;
-    font-weight: 900;
-    letter-spacing: .7px;
-    margin: 0 0 9px 5px;
-    text-shadow: 0 2px 5px rgba(0,0,0,.8);
-}
-
-.threat-card {
-    display: block;
-    box-sizing: border-box;
-    min-height: 104px;
-    width: 100%;
-    background: rgba(24, 29, 41, .98);
-    border: 2px solid rgba(255,255,255,.12);
-    border-left: 6px solid #3182ce;
-    border-radius: 8px;
-    padding: 13px 18px 12px 18px;
-    box-shadow: 0 7px 28px rgba(0,0,0,.55);
-}
-
-.threat-card.media {
-    border-left-color: #e05252;
-}
-
-.threat-source {
-    float: right;
-    color: #fff;
-    background: #3b70b4;
-    border-radius: 5px;
-    padding: 5px 9px;
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: .3px;
-}
-
-.threat-card.media .threat-source {
-    background: #6b7280;
-}
-
-.threat-location {
-    color: #75b9f5;
-    font-size: 12px;
-    line-height: 1.1;
-    font-weight: 900;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 5px;
-}
-
-.threat-card.media .threat-location {
-    color: #ff8b8b;
-}
-
-.threat-title {
-    color: #ffffff;
-    font-size: 19px;
-    line-height: 1.18;
-    font-weight: 800;
-    margin-right: 120px;
-}
-
-.threat-title a {
-    color: #ffffff !important;
-    text-decoration: none !important;
-}
-
-.threat-summary {
-    color: #aab5c7;
-    font-size: 12px;
-    line-height: 1.3;
-    margin-top: 6px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
+    .streamlit-host-cover {
+        position: fixed !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 260px !important;
+        height: 64px !important;
+        background: #111827 !important;
+        z-index: 2147483647 !important;
+        pointer-events: none !important;
+        display: block !important;
+    }
 </style>
+<div class="streamlit-host-cover"></div>
 """, unsafe_allow_html=True)
 
 WAR_KEYWORDS = ["war", "bomb", "explosion", "strike", "missile", "shelling", "attack", "military", "air strike",
@@ -313,107 +150,10 @@ def relevant(title, summary):
     return any(keyword in text for keyword in WAR_KEYWORDS)
 
 
-def has_actual_headline(title, location_name=""):
-    title_str = (title or "").strip()
-    loc_str = (location_name or "").strip()
-    combined = f"{title_str} {loc_str}".strip()
-    if not combined:
-        return False
-    # Extract all alphabetical words of length >= 2
-    words = re.findall(r'[a-zA-Z]{2,}', combined)
-    non_meaningful = {
-        "m", "km", "mi", "lat", "lon", "xml", "atom", "rss", "null", "undefined", "utc", "geojson", "usgs",
-        "of", "in", "at", "and", "or", "the", "a", "an", "deg", "degree", "se", "sw", "ne", "nw",
-        "nne", "ene", "ese", "sse", "ssw", "wsw", "wnw", "nnw", "global", "event"
-    }
-    meaningful_words = [w for w in words if w.lower() not in non_meaningful]
-    # Must have at least 2 meaningful words
-    return len(meaningful_words) >= 2
-
-
-def format_usgs_title_and_place(raw_title, raw_place="", mag=None):
-    title_str = clean_text(raw_title or "")
-    place_str = clean_text(raw_place or "")
-
-    # If place is not provided directly, extract it from title "M 1.5 - 3km SW of Anza, CA"
-    if not place_str and " - " in title_str:
-        parts = title_str.split(" - ", 1)
-        place_str = parts[1].strip()
-
-    # Extract magnitude from title if not given
-    if mag is None:
-        mag_match = re.search(r'\bM\s*([\d\.\-]+)\b', title_str, re.IGNORECASE)
-        if mag_match:
-            try:
-                mag = float(mag_match.group(1))
-            except ValueError:
-                mag = None
-
-    # Strip coordinates or purely numeric patterns from place_str
-    if re.match(r'^[\d\s.,\-\+°]+$', place_str):
-        place_str = ""
-
-    # Find meaningful alphabetic words in place_str (length >= 2)
-    words = re.findall(r'[a-zA-Z]{2,}', place_str)
-    cardinals_and_units = {
-        "km", "mi", "lat", "lon", "n", "s", "e", "w", "ne", "nw", "se", "sw",
-        "nne", "ene", "ese", "sse", "ssw", "wsw", "wnw", "nnw", "of", "deg", "degree",
-        "utc", "m", "atom", "rss", "geojson", "global", "event"
-    }
-    meaningful_words = [w for w in words if w.lower() not in cardinals_and_units]
-
-    # If there are no real place words, reject this USGS event!
-    if not meaningful_words:
-        return None, None
-
-    # We have a valid location with actual words!
-    loc_display = place_str
-
-    # Explicitly construct clean headline containing "Earthquake"
-    if mag is not None and str(mag) != "None":
-        clean_title = f"M{mag} Earthquake - {loc_display}"
-    else:
-        clean_title = f"Earthquake - {loc_display}"
-
-    return clean_title, loc_display
-
-
-def get_pin_colors(item):
-    text = f"{item.get('title', '')} {item.get('location_name', '')} {item.get('summary', '')}".lower()
-
-    # Check if this item is related to war, bomb, missile, or armed conflict
-    is_conflict = any(k in text for k in WAR_KEYWORDS) or bool(re.search(
-        r'\b(war|bomb|bombs|missile|missiles|strike|strikes|attack|attacks|explosion|blast|combat|invasion|military|shelling|drone|drones|air strike)\b',
-        text))
-
-    if is_conflict:
-        # Bright red strictly for war, bomb, and missile pins
-        return "#ef4444", "#f87171"
-
-    if re.search(r'\bred\b', text):
-        # Non-conflict pins labeled red (e.g. GDACS Red alert) -> Much darker red
-        return "#7f1d1d", "#991b1b"
-    elif re.search(r'\bgreen\b', text):
-        return "#22c55e", "#4ade80"
-    elif re.search(r'\borange\b', text):
-        return "#f97316", "#fb923c"
-    elif re.search(r'\b(yellow|amber)\b', text):
-        return "#eab308", "#fde047"
-    elif re.search(r'\bblue\b', text):
-        return "#3b82f6", "#60a5fa"
-    elif re.search(r'\b(purple|violet)\b', text):
-        return "#a855f7", "#c084fc"
-    elif re.search(r'\b(pink|magenta)\b', text):
-        return "#ec4899", "#f472b6"
-    elif re.search(r'\b(gray|grey)\b', text):
-        return "#6b7280", "#9ca3af"
-
-    if item.get("is_un_data"):
-        return "#3182ce", "#63b3ed"
-    return "#3b82f6", "#60a5fa"
-
-
 # ─── SECTION 2: VERIFIED DISASTER DATA FEEDS ───
+# Feed URLs are the machine-readable endpoints, while the homepage URLs are kept
+# as clickable source links in the app. ReliefWeb requires an approved appname;
+# set RELIEFWEB_APPNAME in the deployment environment.
 FEED_CONFIG = [
     {
         "source": "GDACS",
@@ -452,6 +192,11 @@ FEED_CONFIG = [
     },
 ]
 
+REQUEST_HEADERS = {
+    "User-Agent": "CrisisCommand/2.0 (+https://gdacs.org; disaster-feed-client)",
+    "Accept": "application/json, application/xml, text/xml, application/atom+xml, */*",
+}
+
 
 def _safe_float(value):
     try:
@@ -477,32 +222,6 @@ def _xml_local_attr(node, child_name, attr_name):
     return ""
 
 
-def extract_direct_article_url(item):
-    links = []
-    for child in list(item):
-        local = child.tag.rsplit("}", 1)[-1].lower()
-        if local == "link":
-            href = child.attrib.get("href", "").strip()
-            text = (child.text or "").strip()
-            rel = child.attrib.get("rel", "").lower()
-            if href.startswith("http"):
-                if rel in {"alternate", ""} or not rel:
-                    links.insert(0, href)
-                else:
-                    links.append(href)
-            elif text.startswith("http"):
-                links.append(text)
-        elif local in {"guid", "id"}:
-            text = (child.text or "").strip()
-            if text.startswith("http"):
-                links.append(text)
-
-    for l in links:
-        if not any(l.lower().endswith(ext) for ext in [".xml", ".atom", "/rss", "/feed", ".rss"]):
-            return l
-    return links[0] if links else ""
-
-
 @st.cache_data(ttl=120, show_spinner=False)
 def fetch_rss(url, source_name, limit=8, only_relevant=False):
     articles = []
@@ -517,20 +236,22 @@ def fetch_rss(url, source_name, limit=8, only_relevant=False):
         for item in items:
             title = _xml_local_text(item, "title")
             description = _xml_local_text(item, "description", "summary", "content")
-            link = extract_direct_article_url(item)
+            link = _xml_local_text(item, "link")
+            if not link:
+                link = _xml_local_attr(item, "link", "href")
             if not title or not link:
                 continue
             if only_relevant and not relevant(title, description):
                 continue
 
+            # GeoRSS / GDACS coordinates. Fall back to title/summary matching.
             lat = lon = None
             for node in item.iter():
                 local = node.tag.rsplit("}", 1)[-1].lower()
                 if local in {"point", "where"} and node.text:
                     parts = node.text.replace(",", " ").split()
                     if len(parts) >= 2:
-                        lat = _safe_float(parts[0]);
-                        lon = _safe_float(parts[1])
+                        lat = _safe_float(parts[0]); lon = _safe_float(parts[1])
                         break
                 if local in {"lat", "latitude"}:
                     lat = _safe_float(node.text)
@@ -583,7 +304,6 @@ def fetch_reliefweb(limit=15):
             title = clean_text(fields.get("title", ""))
             if not title:
                 continue
-            report_url = fields.get("url") or f"https://reliefweb.int/node/{item.get('id')}"
             countries = fields.get("primary_country") or {}
             country_name = countries.get("name") if isinstance(countries, dict) else None
             location = countries.get("location") if isinstance(countries, dict) else {}
@@ -601,7 +321,7 @@ def fetch_reliefweb(limit=15):
             summary = f"Live ReliefWeb operational intelligence update{(' — ' + date_text[:19]) if date_text else ''}."
             articles.append({
                 "title": title,
-                "link": report_url,
+                "link": fields.get("url") or "https://reliefweb.int",
                 "location_name": country_name or "Global",
                 "lat": float(lat),
                 "lon": float(lon),
@@ -615,14 +335,14 @@ def fetch_reliefweb(limit=15):
 
 
 @st.cache_data(ttl=60, show_spinner=False)
-def fetch_usgs_geojson(limit=25):
+def fetch_usgs_geojson(limit=20):
     articles = []
     url = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson"
     try:
         response = requests.get(url, headers=REQUEST_HEADERS, timeout=15)
         response.raise_for_status()
         data = response.json()
-        for feature in data.get("features", []):
+        for feature in data.get("features", [])[:limit]:
             props = feature.get("properties") or {}
             coords = ((feature.get("geometry") or {}).get("coordinates") or [])
             if len(coords) < 2:
@@ -630,22 +350,13 @@ def fetch_usgs_geojson(limit=25):
             lon, lat = _safe_float(coords[0]), _safe_float(coords[1])
             if lat is None or lon is None:
                 continue
-
-            raw_title = props.get("title") or ""
-            raw_place = props.get("place") or ""
+            title = clean_text(props.get("title") or "USGS earthquake")
+            link = props.get("url") or data.get("metadata", {}).get("url") or "https://earthquake.usgs.gov/"
             magnitude = props.get("mag")
-
-            title, place = format_usgs_title_and_place(raw_title, raw_place, magnitude)
-            if not title or not place:
-                continue
-
-            feature_id = feature.get("id") or ""
-            link = props.get("url") or (
-                f"https://earthquake.usgs.gov/earthquakes/eventpage/{feature_id}/executive" if feature_id else "https://earthquake.usgs.gov/earthquakes/")
+            place = clean_text(props.get("place") or "Global")
             time_ms = props.get("time")
             time_text = time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime(time_ms / 1000)) if time_ms else ""
-            summary = f"Magnitude {magnitude if magnitude is not None else 'N/A'} — {place}{(' — ' + time_text) if time_text else ''}"
-
+            summary = f"Magnitude {magnitude} — {place}{(' — ' + time_text) if time_text else ''}"
             articles.append({
                 "title": title,
                 "link": link,
@@ -656,8 +367,6 @@ def fetch_usgs_geojson(limit=25):
                 "summary": summary,
                 "is_un_data": True,
             })
-            if len(articles) >= limit:
-                break
     except Exception:
         pass
     return articles
@@ -665,32 +374,17 @@ def fetch_usgs_geojson(limit=25):
 
 @st.cache_data(ttl=60, show_spinner=False)
 def fetch_usgs_atom(limit=12):
-    raw_articles = fetch_rss(
+    return fetch_rss(
         "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.atom",
         "USGS",
-        limit=limit * 2,
+        limit=limit,
         only_relevant=False,
     )
-    formatted = []
-    for art in raw_articles:
-        raw_title = art.get("title", "")
-        raw_place = art.get("location_name", "")
-        if raw_place == "Global":
-            raw_place = ""
-        title, place = format_usgs_title_and_place(raw_title, raw_place)
-        if not title or not place:
-            continue
-        art["title"] = title
-        art["location_name"] = place
-        art["summary"] = f"{title} — {art.get('summary', '')}"
-        formatted.append(art)
-        if len(formatted) >= limit:
-            break
-    return formatted
 
 
 def fetch_live_media():
     all_articles = []
+    # Keep the existing media monitoring, but use actual feed URLs rather than homepages.
     feeds = [
         ("BBC (UK)", "https://feeds.bbci.co.uk/news/rss.xml"),
         ("SKY NEWS", "https://feeds.skynews.com/feeds/rss/home.xml"),
@@ -704,8 +398,7 @@ def fetch_live_media():
     for article in all_articles:
         key = article["title"].strip().lower()
         if key not in seen:
-            seen.add(key);
-            unique.append(article)
+            seen.add(key); unique.append(article)
     return unique
 
 
@@ -714,55 +407,19 @@ feed_articles = []
 feed_articles.extend(fetch_rss(FEED_CONFIG[0]["feed_url"], "GDACS", limit=8))
 feed_articles.extend(fetch_rss(FEED_CONFIG[1]["feed_url"], "GDACS", limit=8))
 feed_articles.extend(fetch_reliefweb(limit=15))
-feed_articles.extend(fetch_usgs_geojson(limit=25))
+feed_articles.extend(fetch_usgs_geojson(limit=20))
 feed_articles.extend(fetch_usgs_atom(limit=12))
 feed_articles.extend(fetch_live_media())
 
-# De-duplicate across formats & strictly enforce headline filter (words required)
+# De-duplicate across formats without hiding a source's identity.
 seen, mapped_alerts = set(), []
 for article in feed_articles:
-    t = article.get("title", "")
-    loc = article.get("location_name", "")
-    if not has_actual_headline(t, loc):
-        continue
-    key = (t.strip().lower(), round(article["lat"], 3), round(article["lon"], 3))
+    key = (article["title"].strip().lower(), round(article["lat"], 3), round(article["lon"], 3))
     if key in seen:
         continue
     seen.add(key)
     mapped_alerts.append(article)
-
-
-# ─── SERVER-SIDE ARTICLE CONTENT SCRAPER ───
-@st.cache_data(ttl=300, show_spinner=False)
-def fetch_full_article_content(url):
-    try:
-        res = requests.get(url, headers=REQUEST_HEADERS, timeout=10)
-        res.raise_for_status()
-        soup = BeautifulSoup(res.text, "html.parser")
-
-        # Strip scripts, styles, navs, footers
-        for tag in soup(["script", "style", "nav", "footer", "header", "noscript", "aside", "form"]):
-            tag.decompose()
-
-        # Find main content container
-        main_body = soup.find("article") or soup.find("main") or soup.find(
-            class_=re.compile(r"content|article|body|report", re.I)) or soup.body
-        if not main_body:
-            return []
-
-        paragraphs = []
-        for p in main_body.find_all("p"):
-            text = clean_text(p.get_text())
-            if len(text) > 40 and not any(skip in text.lower() for skip in
-                                          ["cookies", "subscribe", "rights reserved", "privacy policy", "all rights"]):
-                paragraphs.append(text)
-
-        return paragraphs[:12]
-    except Exception:
-        return []
-
-
-# ─── ARTICLE VIEW (Direct-to-source iframe, no landing/middle page) ───
+# ─── ARTICLE VIEW (shown when a card/pin link is opened) ───
 requested_article = st.query_params.get("article")
 if requested_article is not None:
     try:
@@ -771,109 +428,109 @@ if requested_article is not None:
         article_idx = None
     article = mapped_alerts[article_idx] if article_idx is not None and 0 <= article_idx < len(mapped_alerts) else None
 
-    # Global styles: full-bleed iframe showing the actual source article,
-    # with a small vertical "back to map" tab fixed to the middle-left of the screen.
+    # Global styles injecting the left-docked button and container layout
     st.markdown("""
     <style>
-        html, body, .stApp, .stAppViewContainer, .stAppViewBlockContainer, .main, .main .block-container {
+        .stApp, .stAppViewContainer, .stAppViewBlockContainer, .main, .main .block-container {
             padding: 0px !important; margin: 0px !important; max-width: 100% !important; width: 100% !important;
-            height: 100vh !important; overflow: hidden !important;
             background-color: #111827 !important;
         }
 
-        .article-frame-wrap {
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 100vw !important;
-            height: 100vh !important;
-            background: #ffffff !important;
+        /* Forces the container to float out of the Streamlit layout column onto the far left wall */
+        .left-dock-anchor {
+            position: fixed !important; 
+            top: 40px !important; 
+            left: 40px !important; 
             z-index: 2147483647 !important;
         }
 
-        .article-iframe {
-            width: 100% !important;
-            height: 100% !important;
-            border: none !important;
-            background: #ffffff !important;
-            display: block !important;
-        }
-
-        .back-to-map-tab {
-            position: fixed !important;
-            top: 50% !important;
-            left: 10px !important;
-            transform: translateY(-50%) !important;
-            z-index: 2147483647 !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            gap: 6px !important;
-            padding: 12px 7px !important;
-            background: #181d29 !important;
+        /* Custom styled HTML button mimicking your interface structure */
+        .custom-back-btn {
+            background-color: #181d29 !important;
             color: #ffffff !important;
-            border: 2px solid rgba(255, 255, 255, 0.28) !important;
+            border: 2px solid rgba(255,255,255,.18) !important;
             border-radius: 8px !important;
-            font-size: 11px !important;
+            padding: 10px 20px !important;
+            font-size: 13px !important;
             font-weight: 800 !important;
-            letter-spacing: 0.6px !important;
-            text-decoration: none !important;
-            text-transform: uppercase !important;
-            writing-mode: vertical-rl !important;
-            text-orientation: mixed !important;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.55) !important;
-            cursor: pointer !important;
-            transition: all 0.2s ease-in-out !important;
+            font-family: Arial, sans-serif !important;
+            box-shadow: 0 6px 20px rgba(0,0,0,.5) !important;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }
-        .back-to-map-tab:hover {
-            background-color: #3182ce !important;
+        .custom-back-btn:hover {
+            background-color: #232a3b !important;
             border-color: #75b9f5 !important;
-            transform: translateY(-50%) scale(1.04) !important;
+            color: #75b9f5 !important;
         }
 
-        .article-missing {
-            position: fixed !important;
-            top: 0 !important; left: 0 !important;
-            width: 100vw !important; height: 100vh !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            color: #94a3b8 !important;
-            background: #111827 !important;
-            font-family: Arial, sans-serif !important;
-            z-index: 2147483647 !important;
+        .article-wrap { 
+            max-width: 680px; 
+            margin: 120px auto 40px; 
+            padding: 0 24px; 
+            font-family: Arial, sans-serif; 
+            color: #e5e7eb; 
         }
+        .article-source-pill { 
+            display: inline-block; 
+            background: #3b70b4; 
+            color: #fff; 
+            border-radius: 5px; 
+            padding: 5px 10px; 
+            font-size: 11px; 
+            font-weight: 800; 
+            letter-spacing: .3px; 
+            margin-bottom: 12px; 
+        }
+        .article-location { color: #75b9f5; font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+        .article-title { color: #fff; font-size: 28px; font-weight: 800; line-height: 1.25; margin-bottom: 18px; }
+        .article-summary { color: #aab5c7; font-size: 16px; line-height: 1.6; margin-bottom: 30px; }
+        .article-open-btn { display: inline-block; background: #3182ce; color: #fff; text-decoration: none !important; font-weight: 800; font-size: 14px; padding: 12px 24px; border-radius: 8px; }
+        .article-open-btn:hover { background: #2c6cb0; }
     </style>
     """, unsafe_allow_html=True)
 
-    if article and article.get("link"):
-        article_url = html.escape(str(article["link"]), quote=True)
+    # Pure HTML button placed inside the left-docked anchor.
+    # The 'onclick' script rewrites the browser history state to drop '?article=X' cleanly,
+    # then clicks an invisible button to trigger a smooth internal Streamlit execution update.
+    st.markdown("""
+        <div class="left-dock-anchor">
+            <button class="custom-back-btn" onclick="
+                window.top.history.pushState({}, '', window.top.location.pathname);
+                const btn = window.parent.document.querySelector('button[kind=\\'secondary\\']');
+                if(btn) btn.click(); else window.top.location.reload();
+            ">← Back to Map</button>
+        </div>
+    """, unsafe_allow_html=True)
 
-        st.markdown(f"""<div class="article-frame-wrap">
-<iframe class="article-iframe" src="{article_url}" referrerpolicy="no-referrer-when-downgrade" sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-top-navigation-by-user-activation"></iframe>
-</div>
-<a href="?" target="_top" class="back-to-map-tab">↑ BACK TO MAP ↑</a>""", unsafe_allow_html=True)
+    # Render Article Body Content
+    if article:
+        st.markdown(
+            '<div class="article-wrap">'
+            f'<div class="article-source-pill">{html.escape(str(article["source"]))}</div>'
+            f'<div class="article-location">📍 {html.escape(str(article["location_name"]))}</div>'
+            f'<div class="article-title">{html.escape(str(article["title"]))}</div>'
+            f'<div class="article-summary">{html.escape(str(article["summary"]))}</div>'
+            f'<a class="article-open-btn" href="{html.escape(str(article["link"]), quote=True)}" target="_blank">Open Full Article Source ↗</a>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
     else:
-        st.markdown("""<div class="article-missing">Article not found</div>
-<a href="?" target="_top" class="back-to-map-tab">↑ BACK TO MAP ↑</a>""", unsafe_allow_html=True)
+        st.markdown(
+            '<div class="article-wrap">'
+            '<div class="article-title">Article not found</div>'
+            '<div class="article-summary">This item may have expired from the live tracking logs. Head back to the map view to see current parameters.</div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
     st.stop()
 
 # ─── SOURCE ACCESS PANEL / LIVE PIN HEADLINES ───
-CRISIS_KEYWORDS = [
-    "war", "bomb", "explosion", "strike", "missile", "shelling", "attack", "military", "air strike",
-    "invasion", "blast", "combat", "troop", "forces", "clash", "conflict", "casualty", "offensive", "army",
-    "gaza", "ukraine", "israel", "lebanon", "syria", "drone", "hezbollah", "houthi", "terror", "hostage",
-    "killed", "fatal", "casualties", "weapon", "defense", "iaea", "ceasefire", "fighting", "rebel", "coup",
-    "crisis", "catastrophe", "extreme", "famine", "disaster", "emergency", "devastating", "evacuation",
-    "tsunami", "volcano", "cyclone", "hurricane", "red alert", "severe", "critical"
-]
-
-
-def is_war_or_extreme_crisis(item):
-    text = f"{item.get('title', '')} {item.get('summary', '')} {item.get('location_name', '')}".lower()
-    return any(k in text for k in CRISIS_KEYWORDS)
-
-
+# Rotates through the actual live alerts currently represented by map pins.
+# Each banner item shows the source + the headline from the corresponding pin.
 source_rows = []
 source_alert_items = []
 
@@ -885,9 +542,6 @@ for alert_idx, item in enumerate(mapped_alerts):
     link = f"?article={alert_idx}"
 
     if not title_text:
-        continue
-
-    if not is_war_or_extreme_crisis(item):
         continue
 
     source_alert_items.append(
@@ -902,8 +556,11 @@ for alert_idx, item in enumerate(mapped_alerts):
         f'</div>'
     )
 
+# Limit the rotating banner to the same first 8 live alerts used by the
+# breaking-news overlay, keeping the interface compact.
 source_rows = source_alert_items[:8]
 
+# If there are no live alerts, keep the banner visible and explain why.
 if not source_rows:
     source_rows = [
         '<div class="source-row source-row-0 source-row-empty">'
@@ -917,106 +574,58 @@ if not source_rows:
         '</div>'
     ]
 
-# Append full-banner overlay item for "In friendship with: The Brussels Times" at end of feed sequence
-brussels_times_banner_html = (
-    f'<div class="source-row source-row-banner-overlay source-row-{len(source_rows)}">'
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 130" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">'
-    '<defs>'
-    '<style>'
-    '@import url("https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&amp;family=Playfair+Display:ital,wght@0,400;0,600&amp;display=swap");'
-    '.bt-sub { font-family: "Playfair Display", Georgia, serif; font-size: 26px; fill: #111827; letter-spacing: 0.5px; }'
-    '.bt-title { font-family: "UnifrakturMaguntia", "Old English Text MT", "Cloister Black", serif; font-size: 78px; fill: #111827; font-weight: 700; }'
-    '</style>'
-    '</defs>'
-    '<rect width="100%" height="100%" fill="#ffffff"/>'
-    '<g transform="translate(60, 16)">'
-    '<text x="0" y="26" class="bt-sub">In friendship with:</text>'
-    '<text x="0" y="98" class="bt-title">The Brussels Times</text>'
-    '</g>'
-    '</svg>'
-    '</div>'
-)
-source_rows.append(brussels_times_banner_html)
-
 source_count = len(source_rows)
-if source_count > 1:
-    source_durations = [10] * (source_count - 1) + [30]
-else:
-    source_durations = [30]
+source_seconds_per_row = 5
+source_total_seconds = max(5, source_count * source_seconds_per_row)
+source_visible_percent = (source_seconds_per_row / source_total_seconds) * 100
+source_fade_percent = min(3.0, source_visible_percent * 0.15)
 
-source_total_seconds = max(10, sum(source_durations))
-fade_sec = 0.5
+source_animation_rules = "\n".join(
+    f".source-row-{index} {{ animation: sourceFade {source_total_seconds}s infinite; "
+    f"animation-delay: {index * source_seconds_per_row}s; }}"
+    for index in range(source_count)
+)
 
-keyframes_list = []
-animation_rules_list = []
-
-accum_sec = 0
-for idx, dur in enumerate(source_durations):
-    start_sec = accum_sec
-    end_sec = accum_sec + dur
-    accum_sec = end_sec
-
-    p_start = (start_sec / source_total_seconds) * 100
-    p_fadein = (min(end_sec, start_sec + fade_sec) / source_total_seconds) * 100
-    p_fadeout = (max(start_sec, end_sec - fade_sec) / source_total_seconds) * 100
-    p_end = (end_sec / source_total_seconds) * 100
-
-    kf_name = f"sourceFade{idx}"
-
-    kf_css = f"""
-@keyframes {kf_name} {{
-    0% {{ opacity: 0; visibility: hidden; transform: translateY(3px); }}
-    {p_start:.2f}% {{ opacity: 0; visibility: visible; transform: translateY(3px); }}
-    {p_fadein:.2f}% {{ opacity: 1; visibility: visible; transform: translateY(0); }}
-    {p_fadeout:.2f}% {{ opacity: 1; visibility: visible; transform: translateY(0); }}
-    {p_end:.2f}% {{ opacity: 0; visibility: visible; transform: translateY(-2px); }}
-    100% {{ opacity: 0; visibility: hidden; transform: translateY(-2px); }}
-}}
-"""
-    keyframes_list.append(kf_css)
-    animation_rules_list.append(
-        f".source-row-{idx} {{ animation: {kf_name} {source_total_seconds}s linear infinite; }}")
-
-all_source_keyframes = "\n".join(keyframes_list)
-all_source_animation_rules = "\n".join(animation_rules_list)
+src_kf0 = 0
+src_kf1 = source_fade_percent
+src_kf2 = source_visible_percent - source_fade_percent
+src_kf3 = source_visible_percent
 
 st.markdown(f"""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&family=Playfair+Display:ital,wght@0,400;0,600&display=swap');
-
 .source-access {{
     position: fixed !important;
     left: 0 !important;
     right: 0 !important;
     bottom: 0 !important;
     width: 100vw !important;
-    height: 180px !important;
+    height: 92px !important;
     box-sizing: border-box !important;
     overflow: hidden !important;
     z-index: 2147483000 !important;
     background: #111827;
-    border-top: 2px solid rgba(255,255,255,.18);
+    border-top: 1px solid rgba(255,255,255,.12);
     margin: 0;
-    padding: 12px 28px;
+    padding: 9px 22px;
     color: #e5e7eb;
     font-family: Arial, sans-serif;
-    box-shadow: 0 -8px 28px rgba(0,0,0,.65);
+    box-shadow: 0 -6px 20px rgba(0,0,0,.4);
 }}
 
 .source-access-head {{
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 900;
-    letter-spacing: .9px;
+    letter-spacing: .8px;
     text-transform: uppercase;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
 }}
 
 .source-access-body {{
     position: relative;
-    min-height: 130px;
+    min-height: 58px;
 }}
 
 .source-row {{
@@ -1025,62 +634,37 @@ st.markdown(f"""
     top: 0;
     width: 100%;
     display: block;
-    padding: 4px 0;
+    padding: 5px 0;
     border-top: 1px solid rgba(255,255,255,.07);
     box-sizing: border-box;
     opacity: 0;
     visibility: hidden;
     transform: translateY(3px);
-    font-size: 13px;
-}}
-
-.source-row-banner-overlay {{
-    position: absolute !important;
-    top: -48px !important;
-    left: -28px !important;
-    width: calc(100% + 56px) !important;
-    height: 180px !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    border-top: none !important;
-    background: #ffffff !important;
-    z-index: 100 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    box-sizing: border-box !important;
-    overflow: hidden !important;
-}}
-
-.source-row-banner-overlay svg {{
-    width: 100% !important;
-    height: 100% !important;
-    max-height: 180px !important;
-    object-fit: contain !important;
+    font-size: 12px;
 }}
 
 .source-headline-wrap {{
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 4px;
+    gap: 10px;
+    margin-bottom: 3px;
 }}
 
 .source-name {{
     color: #ffffff;
     background: #3b70b4;
-    border-radius: 5px;
-    padding: 4px 10px;
-    font-size: 11px;
+    border-radius: 4px;
+    padding: 3px 7px;
+    font-size: 9px;
     font-weight: 900;
-    letter-spacing: .6px;
+    letter-spacing: .5px;
     text-transform: uppercase;
     white-space: nowrap;
 }}
 
 .source-location {{
     color: #ff8b8b;
-    font-size: 11px;
+    font-size: 9px;
     font-weight: 800;
     letter-spacing: .5px;
     text-transform: uppercase;
@@ -1092,22 +676,17 @@ st.markdown(f"""
 .source-headline {{
     width: 100%;
     overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 4;
-    -webkit-box-orient: vertical;
-    white-space: normal;
-    word-break: break-word;
-    line-height: 1.35;
-    max-height: 5.6em;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }}
 
 .source-headline a,
 .source-headline a:visited {{
     color: #ffffff !important;
     text-decoration: none !important;
-    font-size: 16px;
+    font-size: 14px;
     font-weight: 800;
-    line-height: 1.3;
+    line-height: 1.25;
 }}
 
 .source-headline a:hover {{
@@ -1123,9 +702,35 @@ st.markdown(f"""
     font-size: 12px;
 }}
 
-{all_source_keyframes}
+@keyframes sourceFade {{
+    {src_kf0}% {{
+        opacity: 0;
+        visibility: visible;
+        transform: translateY(3px);
+    }}
+    {src_kf1}% {{
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+    }}
+    {src_kf2}% {{
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+    }}
+    {src_kf3}% {{
+        opacity: 0;
+        visibility: visible;
+        transform: translateY(-2px);
+    }}
+    100% {{
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-2px);
+    }}
+}}
 
-{all_source_animation_rules}
+{source_animation_rules}
 </style>
 """, unsafe_allow_html=True)
 
@@ -1138,11 +743,13 @@ st.markdown(
     '<div class="source-access-body">'
     + ''.join(source_rows)
     + '</div>'
-      '</div>',
+    '</div>',
     unsafe_allow_html=True,
 )
 
 # ─── SECTION 3: MAP CANVAS LAYER RENDERING ───
+# The viewport is derived ONLY from real coordinates supplied by live feeds.
+# No synthetic/fallback coordinates are used for map positioning.
 live_pin_items = []
 for alert_idx, item in enumerate(mapped_alerts):
     try:
@@ -1153,7 +760,8 @@ for alert_idx, item in enumerate(mapped_alerts):
     except (TypeError, ValueError):
         continue
 
-# Map building
+# Neutral view only when there are no real pins. This is a map viewport,
+# not an event/pin and must never be interpreted as a location.
 m = folium.Map(
     location=[20.0, 0.0],
     zoom_start=2,
@@ -1161,8 +769,7 @@ m = folium.Map(
     max_bounds=True,
     zoom_control=False,
     scrollWheelZoom=True,
-    touchZoom=True,
-    doubleClickZoom=True
+    touchZoom=True
 )
 
 folium.TileLayer(
@@ -1173,21 +780,28 @@ folium.TileLayer(
     no_wrap=True
 ).add_to(m)
 
-m.get_root().header.add_child(folium.Element(
-    "<style>html, body, #map, .leaflet-container, .leaflet-pane, .leaflet-top, .leaflet-bottom, .leaflet-control, .leaflet-tile-pane "
-    "{background-color: #262626 !important; background: #262626 !important; color-scheme: dark !important; margin: 0; padding: 0;} "
-    ".leaflet-popup-content-wrapper, .leaflet-popup-tip {background-color: #1a1a1a !important; color: #ffffff !important; border: 1px solid #3d3d3d !important; box-shadow: 0 4px 16px rgba(0,0,0,0.8) !important;} "
-    ".leaflet-popup-content {margin: 10px 14px !important;}</style>"
+# Leaflet's default container background is a light grey (#ddd) and shows through
+# whenever the fitted zoom/bounds don't fully tile-cover the container (letterboxing).
+# This lives inside the map's own iframe, so the outer page CSS can't reach it —
+# it has to be injected directly into the Folium-generated HTML.
+m.get_root().html.add_child(folium.Element(
+    "<style>html, body {background: #262626 !important; margin: 0; padding: 0;} "
+    ".leaflet-container {background: #262626 !important;}</style>"
 ))
 
+# NEW: collect one click-handler snippet per pin. Each pin gets its own
+# JS variable name (marker.get_name()), so each click handler is scoped
+# to that specific marker only.
+marker_click_scripts = []
+
 for alert_idx, item, lat, lon in live_pin_items:
-    m_color, b_color = get_pin_colors(item)
+    m_color, b_color = ("#3182ce", "#63b3ed") if item["is_un_data"] else ("#ff4b4b", "#ff8080")
     popup_html = (
-        f'<div style="font-family:sans-serif; font-size:12px; width:240px; color:#ffffff; line-height:1.4;">'
-        f'<span style="color:#a0aec0; font-weight:800; font-size:10px; text-transform:uppercase; letter-spacing:0.5px;">'
+        f'<div style="font-family:sans-serif; font-size:12px; width:240px; color:#1a1f2c; line-height:1.4;">'
+        f'<span style="color:#718096; font-weight:800; font-size:10px; text-transform:uppercase;">'
         f'📍 {html.escape(str(item["location_name"]))} — {html.escape(str(item["source"]))}</span><br>'
         f'<a href="?article={alert_idx}" target="_top" '
-        f'style="text-decoration:none; font-weight:700; color:{m_color}; display:inline-block; margin-top:6px; font-size:13px;">'
+        f'style="text-decoration:none; font-weight:700; color:{m_color}; display:inline-block; margin-top:4px;">'
         f'{html.escape(str(item["title"]))} ↗</a></div>'
     )
     marker = folium.CircleMarker(
@@ -1201,27 +815,45 @@ for alert_idx, item, lat, lon in live_pin_items:
     )
     marker.add_to(m)
 
-popup_zoom_js = f"""
-{m.get_name()}.on('popupopen', function(e) {{
-    if (e && e.popup && e.popup.getLatLng) {{
-        var latlng = e.popup.getLatLng();
-        var curZ = {m.get_name()}.getZoom();
-        var targetZ = curZ < 5 ? 5 : Math.min(curZ + 2, 8);
-        {m.get_name()}.flyTo(latlng, targetZ, {{duration: 0.8, easeLinearity: 0.25}});
-    }}
-}});
-{m.get_name()}.on('dblclick', function(e) {{
-    if (e && e.latlng) {{
-        var curZ = {m.get_name()}.getZoom();
-        var targetZ = curZ < 5 ? 5 : Math.min(curZ + 2, 8);
-        {m.get_name()}.flyTo(e.latlng, targetZ, {{duration: 0.8, easeLinearity: 0.25}});
-    }}
-}});
-"""
-m.get_root().script.add_child(folium.Element(popup_zoom_js))
+    # NEW: first click on a pin flies the map in to continent-level zoom
+    # (zoom 4) centered on that pin. The bound popup (above) still opens
+    # on the same click, so the flow is:
+    #   click pin -> map zooms into that continent + popup with title link
+    #   click the title link in the popup -> opens the article view
+    # Math.max(...) guards against zooming OUT if the map is already
+    # tighter than zoom 4 (e.g. a second pin clicked nearby).
+    marker_click_scripts.append(
+        f"{marker.get_name()}.on('click', function(e) {{"
+        f"{m.get_name()}.flyTo(e.latlng, Math.max({m.get_name()}.getZoom(), 4), {{duration: 0.75}});"
+        f"}});"
+    )
 
-all_bounds_js = "[[-60, -180], [85, 180]]"
+# NEW: attach all the click handlers, deferred until DOMContentLoaded.
+# An earlier version of this added the handler code straight into the
+# page via `.html.add_child(...)`, which (depending on exactly where
+# Folium places the map/marker-creation <script> relative to the body)
+# could run BEFORE `marker_xxx`/`map_xxx` existed yet as JS variables -
+# a silent ReferenceError, so the handlers never attached and clicking
+# a pin did nothing.
+# Wrapping the attachment code in a DOMContentLoaded listener sidesteps
+# that ordering question entirely: this callback only fires once every
+# script tag already on the page (including the one Folium generates to
+# build the map and every marker) has finished executing, so `marker_xxx`
+# and `map_xxx` are guaranteed to exist by the time this runs - no matter
+# where in the document our own script tag physically sits.
+if marker_click_scripts:
+    deferred_click_script = (
+        "document.addEventListener('DOMContentLoaded', function() {"
+        + "".join(marker_click_scripts)
+        + "});"
+    )
+    m.get_root().html.add_child(folium.Element(
+        "<script>" + deferred_click_script + "</script>"
+    ))
 
+# Automatically fit the map to the real pins.
+# Regional clusters zoom in; globally separated events zoom out.
+# The map remains a single, non-repeating world view.
 if live_pin_items:
     lats = [lat for _, _, lat, _ in live_pin_items]
     lons = [lon for _, _, _, lon in live_pin_items]
@@ -1229,7 +861,6 @@ if live_pin_items:
     if len(live_pin_items) == 1:
         m.location = [lats[0], lons[0]]
         m.options["zoom"] = 7
-        all_bounds_js = f"[[{lats[0] - 1}, {lons[0] - 1}], [{lats[0] + 1}, {lons[0] + 1}]]"
     else:
         south, north = min(lats), max(lats)
         west, east = min(lons), max(lons)
@@ -1242,6 +873,7 @@ if live_pin_items:
 
         south = max(-90.0, south - lat_pad)
         north = min(90.0, north + lat_pad)
+
         west_bound = max(-180.0, west - lon_pad)
         east_bound = min(180.0, east + lon_pad)
 
@@ -1250,49 +882,9 @@ if live_pin_items:
             padding=(10, 10),
             max_zoom=8
         )
-        all_bounds_js = f"[[{south}, {west_bound}], [{north}, {east_bound}]]"
 
-reset_control_js = f"""
-var ResetControl = L.Control.extend({{
-    options: {{ position: 'topright' }},
-    onAdd: function (map) {{
-        var container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
-        var btn = L.DomUtil.create('a', '', container);
-        btn.innerHTML = '🌐 Back to full map';
-        btn.href = '#';
-        btn.title = 'Reset map view to show all active pins';
-        btn.style.backgroundColor = '#000000';
-        btn.style.color = '#ffffff';
-        btn.style.padding = '8px 14px';
-        btn.style.textDecoration = 'none';
-        btn.style.fontWeight = '700';
-        btn.style.fontSize = '12px';
-        btn.style.fontFamily = 'sans-serif';
-        btn.style.border = '1px solid #333333';
-        btn.style.borderRadius = '6px';
-        btn.style.display = 'inline-block';
-        btn.style.lineHeight = '1.4';
-        btn.style.boxShadow = '0 4px 12px rgba(0,0,0,0.6)';
+st_folium(m, width="100%", height=1000, returned_objects=[], key="tactical_map_flush_v31")
 
-        L.DomEvent.disableClickPropagation(container);
-        L.DomEvent.on(btn, 'click', function (e) {{
-            L.DomEvent.preventDefault(e);
-            map.flyToBounds({all_bounds_js}, {{padding: [10, 10], maxZoom: 8, duration: 1.0}});
-        }});
-        return container;
-    }}
-}});
-{m.get_name()}.addControl(new ResetControl());
-"""
-m.get_root().script.add_child(folium.Element(reset_control_js))
-
-st_folium(
-    m,
-    width="100%",
-    height=1000,
-    key="tactical_map",
-    returned_objects=[]
-)
 
 # =============================================================================
 # BOTTOM NEWS FEED (PURE CSS FIXED ANIMATION OVERLAY)
@@ -1319,7 +911,7 @@ for alert_idx, item in enumerate(mapped_alerts):
         <div class="{card_class} feed-card-{card_index}">
             <div class="threat-source">{source}</div>
             <div class="threat-location">📍 {location}</div>
-            <div class="threat-title"><a href="{link}" target="_top">{title} ↗</a></div>
+            <div class="threat-title"><a href="{link}">{title} ↗</a></div>
             <div class="threat-summary">{summary}</div>
         </div>
     """)
@@ -1351,7 +943,7 @@ else:
 
 animation_css = "\n".join(animation_rules)
 keyframe_0, keyframe_1, keyframe_2, keyframe_3 = 0, fade_percent if card_count else 0, (
-        visible_percent - fade_percent) if card_count else 100, visible_percent if card_count else 100
+            visible_percent - fade_percent) if card_count else 100, visible_percent if card_count else 100
 
 feed_html = f"""
     <style>
