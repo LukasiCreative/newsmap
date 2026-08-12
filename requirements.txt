@@ -1,3 +1,4 @@
 streamlit
 folium
 requests
+beautifulsoup4
