@@ -4,6 +4,17 @@ import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
 from streamlit_folium import st_folium
 
+# Hide the "Hosted with Streamlit" footer button and main menu
+hide_streamlit_style = """
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    .viewerBadge_container__6V6X0 {display: none !important;}
+    </style>
+"""
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
+
 st.set_page_config(page_title="CRISIS COMMAND", layout="wide", page_icon="🛰️", initial_sidebar_state="collapsed")
 
 # ─── SECTION 1: SYSTEM STYLES (ELIMINATING ALL SPACING GAPS) ───
