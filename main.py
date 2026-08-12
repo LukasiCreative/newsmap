@@ -4,97 +4,278 @@ import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
 from streamlit_folium import st_folium
 
-# Hide the "Hosted with Streamlit" footer button and main menu
-hide_streamlit_style = """
-    <style>
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    .viewerBadge_container__6V6X0 {display: none !important;}
-    </style>
-"""
-st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+st.set_page_config(
+    page_title="CRISIS COMMAND",
+    layout="wide",
+    page_icon="🛰️",
+    initial_sidebar_state="collapsed"
+)
 
-
-st.set_page_config(page_title="CRISIS COMMAND", layout="wide", page_icon="🛰️", initial_sidebar_state="collapsed")
-
-# ─── SECTION 1: SYSTEM STYLES (ELIMINATING ALL SPACING GAPS) ───
+# ─── SECTION 1: SYSTEM STYLES ────────────────────────────────────────────────
 st.markdown("""
-    <style>
-        html, body {background-color: #262626 !important;}
-        #MainMenu, footer {visibility: hidden; display: none !important;}
-        header, [data-testid="stHeader"] {display: none !important; height: 0px !important; min-height: 0px !important;}
+<style>
 
-        .stApp, .stAppViewContainer, .stAppViewBlockContainer, .main, .main .block-container {
-            padding: 0px !important; margin: 0px !important; max-width: 100% !important; width: 100% !important;
-            background-color: #262626 !important;
-        }
+/* =========================================================
+   GLOBAL APP BACKGROUND
+   ========================================================= */
 
-        div[data-testid="stAppViewContainer"] {padding-top: 0px !important; margin-top: 0px !important; background-color: #262626 !important;}
-        div[data-testid="stAppViewContainer"] > .main {padding-top: 0px !important; margin-top: 0px !important;}
-        div[data-testid="stMainBlockContainer"] {padding-top: 0px !important; margin-top: 0px !important; background-color: #262626 !important;}
-        .main .block-container {padding-top: 0px !important; margin-top: 0px !important;}
+html,
+body {
+    background-color: #262626 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
 
-        div[data-testid="stVerticalBlock"], 
-        div[data-testid="stElementContainer"], 
-        div[data-testid="stVerticalBlockInsideExecutionFlow"] {
-            padding-left: 0rem !important; padding-right: 0rem !important;
-            margin-left: 0rem !important; margin-right: 0rem !important;
-            padding-top: 0px !important; padding-bottom: 0px !important;
-            margin-top: 0px !important; margin-bottom: 0px !important;
-            gap: 0px !important; width: 100% !important;
-            background-color: transparent !important;
-        }
 
-        [data-testid="stElementContainer"]:first-child {margin-top: 0px !important; padding-top: 0px !important;}
-        div[data-testid="stMainBlockContainer"] {padding-top: 0px !important;}
+/* =========================================================
+   COMPLETELY HIDE STREAMLIT CHROME / BRANDING
+   ========================================================= */
 
-        div[data-testid="stCustomComponentV1"], iframe {
-            width: 100vw !important; height: 100vh !important; 
-            margin: 0px !important; padding: 0px !important; border: none !important;
-            background-color: #262626 !important;
-            background: #262626 !important;
-            color-scheme: dark !important;
-        }
+/* Main menu */
+#MainMenu {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    width: 0 !important;
+    height: 0 !important;
+    pointer-events: none !important;
+}
 
-        div[data-testid="stButton"] button {
-            background-color: #000000 !important;
-            color: #ffffff !important;
-            border: 1px solid #333333 !important;
-            border-radius: 6px !important;
-            font-weight: 700 !important;
-            font-size: 13px !important;
-            letter-spacing: 0.5px !important;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.6) !important;
-            transition: all 0.2s ease !important;
-        }
-        div[data-testid="stButton"] button:hover {
-            background-color: #1a1a1a !important;
-            color: #ffffff !important;
-            border-color: #666666 !important;
-        }
-        div[data-testid="stButton"] button:focus, div[data-testid="stButton"] button:active {
-            background-color: #111111 !important;
-            color: #ffffff !important;
-            box-shadow: none !important;
-        }
+/* Footer */
+footer {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    width: 0 !important;
+    height: 0 !important;
+    pointer-events: none !important;
+}
 
-        .threat-heading { color: #ffffff; font-size: 16px; line-height: 1; font-weight: 900; letter-spacing: .7px; margin: 0 0 9px 5px; text-shadow: 0 2px 5px rgba(0,0,0,.8); }
+/* Header */
+header,
+[data-testid="stHeader"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    width: 0 !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    pointer-events: none !important;
+}
 
-        .threat-card {
-            display: block; box-sizing: border-box; min-height: 104px; width: 100%;
-            background: rgba(24, 29, 41, .98); border: 2px solid rgba(255,255,255,.12);
-            border-left: 6px solid #3182ce; border-radius: 8px; padding: 13px 18px 12px 18px;
-            box-shadow: 0 7px 28px rgba(0,0,0,.55);
-        }
-        .threat-card.media { border-left-color: #e05252; }
-        .threat-source { float: right; color: #fff; background: #3b70b4; border-radius: 5px; padding: 5px 9px; font-size: 10px; font-weight: 800; letter-spacing: .3px; }
-        .threat-card.media .threat-source { background: #6b7280; }
-        .threat-location { color: #75b9f5; font-size: 12px; line-height: 1.1; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
-        .threat-card.media .threat-location { color: #ff8b8b; }
-        .threat-title { color: #ffffff; font-size: 19px; line-height: 1.18; font-weight: 800; margin-right: 120px; }
-        .threat-title a { color: #ffffff !important; text-decoration: none !important; }
-        .threat-summary { color: #aab5c7; font-size: 12px; line-height: 1.3; margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    </style>
+/* Toolbar */
+[data-testid="stToolbar"],
+[data-testid="stToolbarActions"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    width: 0 !important;
+    height: 0 !important;
+    pointer-events: none !important;
+}
+
+/* Streamlit decoration / status elements */
+[data-testid="stDecoration"],
+[data-testid="stStatusWidget"],
+[data-testid="stAppDeployButton"],
+[data-testid="stHeaderActionElements"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    width: 0 !important;
+    height: 0 !important;
+    pointer-events: none !important;
+}
+
+/* Streamlit viewer/deployment badges */
+div[class*="viewerBadge"],
+div[class*="stDeployButton"],
+div[class*="StatusWidget"],
+div[class*="Toolbar"],
+div[class*="Decoration"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    width: 0 !important;
+    height: 0 !important;
+    pointer-events: none !important;
+}
+
+/* Any button/link explicitly labelled Streamlit */
+button[title*="Streamlit"],
+button[aria-label*="Streamlit"],
+a[title*="Streamlit"],
+a[aria-label*="Streamlit"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+
+/* =========================================================
+   REMOVE ALL STREAMLIT LAYOUT SPACING
+   ========================================================= */
+
+.stApp,
+.stAppViewContainer,
+.stAppViewBlockContainer,
+.main,
+.main .block-container {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    background-color: #262626 !important;
+}
+
+div[data-testid="stAppViewContainer"] {
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+    background-color: #262626 !important;
+}
+
+div[data-testid="stAppViewContainer"] > .main {
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+}
+
+div[data-testid="stMainBlockContainer"] {
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+    background-color: #262626 !important;
+}
+
+.main .block-container {
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+}
+
+
+/* =========================================================
+   STREAMLIT INTERNAL CONTAINERS
+   ========================================================= */
+
+div[data-testid="stVerticalBlock"],
+div[data-testid="stElementContainer"],
+div[data-testid="stVerticalBlockInsideExecutionFlow"] {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    gap: 0 !important;
+    width: 100% !important;
+    background-color: transparent !important;
+}
+
+[data-testid="stElementContainer"]:first-child {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+}
+
+
+/* =========================================================
+   FOLIUM / MAP IFRAME
+   ========================================================= */
+
+div[data-testid="stCustomComponentV1"],
+iframe {
+    width: 100vw !important;
+    height: 100vh !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+}
+
+
+/* =========================================================
+   THREAT CARDS
+   ========================================================= */
+
+.threat-heading {
+    color: #ffffff;
+    font-size: 16px;
+    line-height: 1;
+    font-weight: 900;
+    letter-spacing: .7px;
+    margin: 0 0 9px 5px;
+    text-shadow: 0 2px 5px rgba(0,0,0,.8);
+}
+
+.threat-card {
+    display: block;
+    box-sizing: border-box;
+    min-height: 104px;
+    width: 100%;
+    background: rgba(24, 29, 41, .98);
+    border: 2px solid rgba(255,255,255,.12);
+    border-left: 6px solid #3182ce;
+    border-radius: 8px;
+    padding: 13px 18px 12px 18px;
+    box-shadow: 0 7px 28px rgba(0,0,0,.55);
+}
+
+.threat-card.media {
+    border-left-color: #e05252;
+}
+
+.threat-source {
+    float: right;
+    color: #fff;
+    background: #3b70b4;
+    border-radius: 5px;
+    padding: 5px 9px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .3px;
+}
+
+.threat-card.media .threat-source {
+    background: #6b7280;
+}
+
+.threat-location {
+    color: #75b9f5;
+    font-size: 12px;
+    line-height: 1.1;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 5px;
+}
+
+.threat-card.media .threat-location {
+    color: #ff8b8b;
+}
+
+.threat-title {
+    color: #ffffff;
+    font-size: 19px;
+    line-height: 1.18;
+    font-weight: 800;
+    margin-right: 120px;
+}
+
+.threat-title a {
+    color: #ffffff !important;
+    text-decoration: none !important;
+}
+
+.threat-summary {
+    color: #aab5c7;
+    font-size: 12px;
+    line-height: 1.3;
+    margin-top: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+</style>
 """, unsafe_allow_html=True)
 
 WAR_KEYWORDS = ["war", "bomb", "explosion", "strike", "missile", "shelling", "attack", "military", "air strike",
