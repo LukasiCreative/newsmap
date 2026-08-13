@@ -7,7 +7,7 @@ from streamlit_folium import st_folium
 st.set_page_config(page_title="CRISIS COMMAND", layout="wide", page_icon="🛰️", initial_sidebar_state="collapsed")
 
 # ─── SECTION 1: SYSTEM STYLES (ELIMINATING ALL SPACING GAPS) ───
-st.markdown("""
+st.markdown(_flatten_html("""
     <style>
         html, body {background-color: #262626 !important; margin: 0 !important; padding: 0 !important;}
 
@@ -107,7 +107,7 @@ st.markdown("""
         .threat-title a { color: #ffffff !important; text-decoration: none !important; }
         .threat-summary { color: #aab5c7; font-size: 12px; line-height: 1.3; margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     </style>
-""", unsafe_allow_html=True)
+"""), unsafe_allow_html=True)
 
 # NOTE: the old "streamlit-host-cover" black box (fixed bottom-right,
 # 260x64px, solid #111827) used to be needed to hide the Streamlit Cloud
@@ -131,6 +131,22 @@ REQUEST_HEADERS = {
     "User-Agent": "CrisisCommand/2.0 (+https://gdacs.org; disaster-feed-client)",
     "Accept": "application/json, application/xml, text/xml, application/atom+xml, */*",
 }
+
+
+# ─── WHY THE "<div class=...>" TEXT WAS SHOWING UP RAW ───────────
+# st.markdown(..., unsafe_allow_html=True) still runs the string
+# through a Markdown parser before allowing HTML through. Markdown's
+# rule: any line indented 4+ spaces that follows a blank line gets
+# rendered as a literal CODE BLOCK (plain escaped text) instead of
+# being treated as HTML. Every HTML/CSS string in this file is
+# written with Python-source-matching indentation for readability
+# (4/8/12 spaces), and feed_html in particular has a blank line
+# right after "</style>" followed by an indented "<div ...>" — which
+# is exactly the pattern that triggers this. Stripping leading
+# whitespace from every line before handing a string to st.markdown
+# avoids the problem everywhere, permanently.
+def _flatten_html(markup):
+    return re.sub(r"(?m)^[ \t]+", "", markup)
 
 
 def clean_text(value):
@@ -430,7 +446,7 @@ if requested_article is not None:
     article = mapped_alerts[article_idx] if article_idx is not None and 0 <= article_idx < len(mapped_alerts) else None
 
     # Global styles injecting the left-docked button and container layout
-    st.markdown("""
+    st.markdown(_flatten_html("""
     <style>
         .stApp, .stAppViewContainer, .stAppViewBlockContainer, .main, .main .block-container {
             padding: 0px !important; margin: 0px !important; max-width: 100% !important; width: 100% !important;
@@ -492,12 +508,12 @@ if requested_article is not None:
         .article-open-btn { display: inline-block; background: #3182ce; color: #fff; text-decoration: none !important; font-weight: 800; font-size: 14px; padding: 12px 24px; border-radius: 8px; }
         .article-open-btn:hover { background: #2c6cb0; }
     </style>
-    """, unsafe_allow_html=True)
+    """), unsafe_allow_html=True)
 
     # Pure HTML button placed inside the left-docked anchor.
     # The 'onclick' script rewrites the browser history state to drop '?article=X' cleanly,
     # then clicks an invisible button to trigger a smooth internal Streamlit execution update.
-    st.markdown("""
+    st.markdown(_flatten_html("""
         <div class="left-dock-anchor">
             <button class="custom-back-btn" onclick="
                 window.top.history.pushState({}, '', window.top.location.pathname);
@@ -505,7 +521,7 @@ if requested_article is not None:
                 if(btn) btn.click(); else window.top.location.reload();
             ">← Back to Map</button>
         </div>
-    """, unsafe_allow_html=True)
+    """), unsafe_allow_html=True)
 
     # Render Article Body Content
     if article:
@@ -592,7 +608,7 @@ src_kf1 = source_fade_percent
 src_kf2 = source_visible_percent - source_fade_percent
 src_kf3 = source_visible_percent
 
-st.markdown(f"""
+st.markdown(_flatten_html(f"""
 <style>
 .source-access {{
     position: fixed !important;
@@ -733,7 +749,7 @@ st.markdown(f"""
 
 {source_animation_rules}
 </style>
-""", unsafe_allow_html=True)
+"""), unsafe_allow_html=True)
 
 st.markdown(
     '<div class="source-access">'
@@ -1034,4 +1050,4 @@ feed_html = f"""
     </div>
     """
 
-st.markdown(feed_html, unsafe_allow_html=True)
+st.markdown(_flatten_html(feed_html), unsafe_allow_html=True)
