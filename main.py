@@ -861,7 +861,7 @@ if live_pin_items:
 
     if len(live_pin_items) == 1:
         m.location = [lats[0], lons[0]]
-        m.options["zoom"] = 7
+        m.options["zoom"] = 8
     else:
         south, north = min(lats), max(lats)
         west, east = min(lons), max(lons)
@@ -869,8 +869,11 @@ if live_pin_items:
 
         lat_span = north - south
         lon_span = raw_span
-        lat_pad = max(2.0, lat_span * 0.12)
-        lon_pad = max(3.0, lon_span * 0.12)
+        # Tighter padding = closer zoom on the actual pin cluster
+        # (was 0.12 / min 2.0-3.0, which pulled in a lot of extra
+        # surrounding area and zoomed out further than needed).
+        lat_pad = max(1.0, lat_span * 0.08)
+        lon_pad = max(1.5, lon_span * 0.08)
 
         south = max(-90.0, south - lat_pad)
         north = min(90.0, north + lat_pad)
@@ -881,8 +884,52 @@ if live_pin_items:
         m.fit_bounds(
             [[south, west_bound], [north, east_bound]],
             padding=(10, 10),
-            max_zoom=8
+            max_zoom=10
         )
+
+# ─── STALE-SIZE / TOP-GAP FIX ────────────────────────────────────
+# Root cause of "big empty gap on top, map squeezed at the bottom":
+# Leaflet calculates its tile layout and centers pins based on the
+# container's pixel size AT THE MOMENT THE MAP INITIALIZES. Our CSS
+# rule forces the surrounding iframe to a specific height, but that
+# CSS is applied by the browser slightly AFTER Leaflet has already
+# measured the (larger, still-resizing) container and laid out tiles
+# for that outdated size. When the iframe visually settles to its
+# final (correct) height, Leaflet doesn't know to recompute — so the
+# map you see is really just the bottom slice of a taller map that
+# was never told to resize, leaving empty space up top.
+# Fix: explicitly call invalidateSize() (which makes Leaflet re-read
+# the container's current size) and then re-apply the exact same
+# view/bounds Python already calculated above, a few times shortly
+# after load and on every window resize. This forces Leaflet to
+# recenter and re-tile using the real, final container dimensions.
+if live_pin_items:
+    if len(live_pin_items) == 1:
+        _reapply_view_js = f"{m.get_name()}.setView([{lats[0]}, {lons[0]}], 7);"
+    else:
+        _reapply_view_js = (
+            f"{m.get_name()}.fitBounds([[{south}, {west_bound}], [{north}, {east_bound}]], "
+            f"{{padding: [10, 10], maxZoom: 10}});"
+        )
+
+    resize_fix_script = (
+        "<script>"
+        f"function __fixMapView(){{ try {{ "
+        f"{m.get_name()}.invalidateSize(); {_reapply_view_js} "
+        f"}} catch(e) {{}} }}"
+        "window.addEventListener('load', function(){"
+        "  __fixMapView();"
+        "  setTimeout(__fixMapView, 200);"
+        "  setTimeout(__fixMapView, 600);"
+        "  setTimeout(__fixMapView, 1200);"
+        "});"
+        "window.addEventListener('resize', __fixMapView);"
+        "if (window.ResizeObserver) {"
+        "  new ResizeObserver(__fixMapView).observe(document.body);"
+        "}"
+        "</script>"
+    )
+    m.get_root().html.add_child(folium.Element(resize_fix_script))
 
 # ─── MAP RENDER HEIGHT FIX ───────────────────────────────────────
 # Previously fixed at height=1000 (px), which is much taller than
