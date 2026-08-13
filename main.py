@@ -525,7 +525,10 @@ if requested_article is not None:
     # full browser navigation, bypassing any such interception.
     st.markdown(_flatten_html("""
         <div class="left-dock-anchor">
-            <button class="custom-back-btn" onclick="window.location.href = window.location.pathname;">← Back to Map</button>
+            <button class="custom-back-btn"
+                    onclick="window.location.replace(window.location.pathname);">
+                ← Back to Map
+            </button>
         </div>
     """), unsafe_allow_html=True)
 
