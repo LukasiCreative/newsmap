@@ -510,43 +510,41 @@ if requested_article is not None:
         .article-location { color: #75b9f5; font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
         .article-title { color: #fff; font-size: 28px; font-weight: 800; line-height: 1.25; margin-bottom: 18px; }
         .article-summary { color: #aab5c7; font-size: 16px; line-height: 1.6; margin-bottom: 30px; }
-        .article-open-btn { display: inline-block; background: #3182ce; color: #fff; text-decoration: none !important; font-weight: 800; font-size: 14px; padding: 12px 24px; border-radius: 8px; }
+        .article-open-btn { display: inline-block; background: #3182ce; color: #fff; text-decoration: none !important; font-weight: 800; font-size: 14px; padding: 12px 24px; border-radius: 8px; border: none; cursor: pointer; font-family: Arial, sans-serif; }
         .article-open-btn:hover { background: #2c6cb0; }
     </style>
     """), unsafe_allow_html=True)
 
-    # Plain anchor link styled as a button. The previous version used
-    # a <button onclick="..."> that tried to find and click an
-    # invisible Streamlit "secondary" button to trigger navigation —
-    # but this app never creates one (there's no st.button() call
-    # anywhere), so that lookup always failed silently and the button
-    # did nothing. A normal <a href="?"> is far more reliable: it's
-    # just standard browser navigation back to the page with no
-    # query params, which works the same whether viewed in Safari or
-    # wrapped in an iOS WKWebView.
+    # Switched from a plain <a href="?"> to a <button onclick="...">
+    # that explicitly sets window.location.href. Plain anchor clicks
+    # weren't registering at all — most likely something on the page
+    # (Streamlit's own client-side routing, which handles some link
+    # clicks itself to avoid full page reloads) was intercepting the
+    # click and not handling this particular href correctly.
+    # Directly assigning window.location.href always forces a real,
+    # full browser navigation, bypassing any such interception.
     st.markdown(_flatten_html("""
         <div class="left-dock-anchor">
-            <a class="custom-back-btn" href="?">← Back to Map</a>
+            <button class="custom-back-btn" onclick="window.location.href = window.location.pathname;">← Back to Map</button>
         </div>
     """), unsafe_allow_html=True)
 
     # Render Article Body Content
     if article:
+        # Same window.location.href approach for the external link,
+        # for the same reason. json.dumps() safely produces a
+        # properly quoted/escaped JS string literal from the URL
+        # (handling any quotes or special characters in it), and
+        # html.escape() then makes that safe to sit inside the
+        # onclick="..." HTML attribute.
+        open_article_js = f"window.location.href = {json.dumps(str(article['link']))};"
         st.markdown(
             '<div class="article-wrap">'
             f'<div class="article-source-pill">{html.escape(str(article["source"]))}</div>'
             f'<div class="article-location">📍 {html.escape(str(article["location_name"]))}</div>'
             f'<div class="article-title">{html.escape(str(article["title"]))}</div>'
             f'<div class="article-summary">{html.escape(str(article["summary"]))}</div>'
-            # target="_blank" was removed here: it tells the browser to
-            # open a new tab/window, which regular Safari supports but
-            # a plain WKWebView (like the one wrapping this app in
-            # Xcode) does not handle by default — the app would need
-            # extra native delegate code to support that, otherwise the
-            # tap just silently does nothing. Without a target
-            # attribute, the link opens in the same view instead, which
-            # works everywhere.
-            f'<a class="article-open-btn" href="{html.escape(str(article["link"]), quote=True)}">Open Full Article Source ↗</a>'
+            f'<button class="article-open-btn" onclick="{html.escape(open_article_js, quote=True)}">Open Full Article Source ↗</button>'
             '</div>',
             unsafe_allow_html=True,
         )
@@ -602,8 +600,10 @@ for alert_idx, item in enumerate(mapped_alerts):
         f'</div>'
     )
 
-# Same first-8 cap as before, now cycled one-at-a-time by JS.
-source_rows = source_alert_items[:8]
+# No cap — cycle through every war/conflict headline available, then
+# loop back to the start (the JS rotation below already wraps around
+# via idx % rows.length, so this just needed more items in the array).
+source_rows = source_alert_items
 
 # If there are no live alerts, keep the banner visible and explain why.
 if not source_rows:
