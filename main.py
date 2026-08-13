@@ -378,12 +378,23 @@ def fetch_usgs_geojson(limit=20):
 
 @st.cache_data(ttl=60, show_spinner=False)
 def fetch_usgs_atom(limit=12):
-    return fetch_rss(
+    # fetch_rss()'s is_un_data heuristic only recognizes source names
+    # starting with "GDACS" or "RELIEFWEB" — "USGS" matches neither,
+    # so every result came back is_un_data=False (i.e. tagged as
+    # "media"/red, war-related). That's wrong: USGS is earthquake
+    # data, not war/conflict news, so it should never be red or show
+    # up in the war-news ticker. Force it to True here explicitly
+    # (matching fetch_usgs_geojson, which already does this
+    # correctly). New dicts are built rather than mutating the
+    # cached ones fetch_rss returned, since @st.cache_data may hand
+    # back the same object on repeat calls.
+    articles = fetch_rss(
         "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.atom",
         "USGS",
         limit=limit,
         only_relevant=False,
     )
+    return [{**article, "is_un_data": True} for article in articles]
 
 
 def fetch_live_media():
@@ -798,7 +809,7 @@ for alert_idx, item, lat, lon in live_pin_items:
     )
     marker = folium.CircleMarker(
         location=[lat, lon],
-        radius=10 if item["is_un_data"] else 8,
+        radius=11 if item["is_un_data"] else 9,
         popup=folium.Popup(popup_html, max_width=280),
         color=b_color,
         fill=True,
@@ -807,16 +818,16 @@ for alert_idx, item, lat, lon in live_pin_items:
     )
     marker.add_to(m)
 
-    # NEW: first click on a pin flies the map in to continent-level zoom
-    # (zoom 4) centered on that pin. The bound popup (above) still opens
-    # on the same click, so the flow is:
-    #   click pin -> map zooms into that continent + popup with title link
+    # first click on a pin flies the map in to a closer zoom (zoom 6,
+    # was 4) centered on that pin. The bound popup (above) still
+    # opens on the same click, so the flow is:
+    #   click pin -> map zooms in closer + popup with title link
     #   click the title link in the popup -> opens the article view
     # Math.max(...) guards against zooming OUT if the map is already
-    # tighter than zoom 4 (e.g. a second pin clicked nearby).
+    # tighter than zoom 6 (e.g. a second pin clicked nearby).
     marker_click_scripts.append(
         f"{marker.get_name()}.on('click', function(e) {{"
-        f"{m.get_name()}.flyTo(e.latlng, Math.max({m.get_name()}.getZoom(), 4), {{duration: 0.75}});"
+        f"{m.get_name()}.flyTo(e.latlng, Math.max({m.get_name()}.getZoom(), 6), {{duration: 0.75}});"
         f"}});"
     )
 
