@@ -109,24 +109,12 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Final app-level cover for any Streamlit branding badge that survives the
-# selectors above. This only covers the small lower-right host/badge area.
-st.markdown("""
-<style>
-    .streamlit-host-cover {
-        position: fixed !important;
-        right: 0 !important;
-        bottom: 0 !important;
-        width: 260px !important;
-        height: 64px !important;
-        background: #111827 !important;
-        z-index: 2147483647 !important;
-        pointer-events: none !important;
-        display: block !important;
-    }
-</style>
-<div class="streamlit-host-cover"></div>
-""", unsafe_allow_html=True)
+# NOTE: the old "streamlit-host-cover" black box (fixed bottom-right,
+# 260x64px, solid #111827) used to be needed to hide the Streamlit Cloud
+# branding badge. Now that the app is hosted on Render (not Streamlit
+# Cloud), that badge doesn't exist anymore — but the cover div was still
+# being rendered, sitting on top of the news feed banner as an opaque
+# black square with nothing to actually hide. It has been removed.
 
 WAR_KEYWORDS = ["war", "bomb", "explosion", "strike", "missile", "shelling", "attack", "military", "air strike",
                 "invasion", "blast", "combat", "troop", "forces", "clash", "conflict", "casualty", "offensive", "army",
