@@ -98,13 +98,14 @@ st.markdown(_flatten_html("""
            empty zoomed-out space looked like a blank/broken layout
            instead of "part of the map".
            Capping the height (and reserving room for the one
-           remaining fixed bottom panel: the 92px source-access
-           ticker — the REAL-TIME BREAKING LOGS card overlay was
+           remaining fixed bottom panel: the source-access ticker,
+           now 300px tall to fit 3-4 headline rows without cutting
+           them off — the REAL-TIME BREAKING LOGS card overlay was
            removed) lets fit_bounds zoom in tighter so pins fill
            more of the view. */
         div[data-testid="stCustomComponentV1"], iframe {
             width: 100vw !important;
-            height: calc(100vh - 92px) !important;
+            height: calc(100vh - 300px) !important;
             margin: 0px !important; padding: 0px !important; border: none !important;
         }
     </style>
@@ -531,8 +532,12 @@ if requested_article is not None:
     st.stop()
 
 # ─── SOURCE ACCESS PANEL / LIVE PIN HEADLINES ───
-# Rotates through the actual live alerts currently represented by map pins.
-# Each banner item shows the source + the headline from the corresponding pin.
+# Was previously a single row that cycled/faded through headlines
+# one at a time, truncating each with an ellipsis if it didn't fit
+# on one line. Now shows a static, scrollable list of up to 8
+# headlines with roughly 3-4 visible at once (the rest reachable by
+# scrolling within the panel), and headlines are allowed to wrap
+# onto a second line instead of being cut off.
 source_rows = []
 source_alert_items = []
 
@@ -547,7 +552,7 @@ for alert_idx, item in enumerate(mapped_alerts):
         continue
 
     source_alert_items.append(
-        f'<div class="source-row source-row-{len(source_alert_items)}">'
+        f'<div class="source-row">'
         f'<div class="source-headline-wrap">'
         f'<span class="source-name">{html.escape(source_text)}</span>'
         f'<span class="source-location">📍 {html.escape(location_text)}</span>'
@@ -558,14 +563,14 @@ for alert_idx, item in enumerate(mapped_alerts):
         f'</div>'
     )
 
-# Limit the rotating banner to the same first 8 live alerts used by the
-# breaking-news overlay, keeping the interface compact.
+# Keep the list to the first 8 live alerts, same as before — the
+# panel shows ~3-4 at a time and the rest are reachable by scrolling.
 source_rows = source_alert_items[:8]
 
 # If there are no live alerts, keep the banner visible and explain why.
 if not source_rows:
     source_rows = [
-        '<div class="source-row source-row-0 source-row-empty">'
+        '<div class="source-row source-row-empty">'
         '<div class="source-headline-wrap">'
         '<span class="source-name">LIVE FEEDS</span>'
         '<span class="source-location">📡 MONITORING</span>'
@@ -576,45 +581,30 @@ if not source_rows:
         '</div>'
     ]
 
-source_count = len(source_rows)
-source_seconds_per_row = 5
-source_total_seconds = max(5, source_count * source_seconds_per_row)
-source_visible_percent = (source_seconds_per_row / source_total_seconds) * 100
-source_fade_percent = min(3.0, source_visible_percent * 0.15)
-
-source_animation_rules = "\n".join(
-    f".source-row-{index} {{ animation: sourceFade {source_total_seconds}s infinite; "
-    f"animation-delay: {index * source_seconds_per_row}s; }}"
-    for index in range(source_count)
-)
-
-src_kf0 = 0
-src_kf1 = source_fade_percent
-src_kf2 = source_visible_percent - source_fade_percent
-src_kf3 = source_visible_percent
-
-st.markdown(_flatten_html(f"""
+st.markdown(_flatten_html("""
 <style>
-.source-access {{
+.source-access {
     position: fixed !important;
     left: 0 !important;
     right: 0 !important;
     bottom: 0 !important;
     width: 100vw !important;
-    height: 92px !important;
+    height: 300px !important;
     box-sizing: border-box !important;
     overflow: hidden !important;
     z-index: 2147483000 !important;
     background: #111827;
     border-top: 1px solid rgba(255,255,255,.12);
     margin: 0;
-    padding: 9px 22px;
+    padding: 9px 22px 12px 22px;
     color: #e5e7eb;
     font-family: Arial, sans-serif;
     box-shadow: 0 -6px 20px rgba(0,0,0,.4);
-}}
+    display: flex;
+    flex-direction: column;
+}
 
-.source-access-head {{
+.source-access-head {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -623,36 +613,38 @@ st.markdown(_flatten_html(f"""
     letter-spacing: .8px;
     text-transform: uppercase;
     margin-bottom: 6px;
-}}
+    flex: 0 0 auto;
+}
 
-.source-access-body {{
+.source-access-body {
     position: relative;
-    min-height: 58px;
-}}
+    flex: 1 1 auto;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
 
-.source-row {{
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
+.source-row {
     display: block;
-    padding: 5px 0;
+    width: 100%;
+    padding: 7px 0;
     border-top: 1px solid rgba(255,255,255,.07);
     box-sizing: border-box;
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(3px);
     font-size: 12px;
-}}
+}
 
-.source-headline-wrap {{
+.source-row:first-child {
+    border-top: none;
+    padding-top: 0;
+}
+
+.source-headline-wrap {
     display: flex;
     align-items: center;
     gap: 10px;
     margin-bottom: 3px;
-}}
+}
 
-.source-name {{
+.source-name {
     color: #ffffff;
     background: #3b70b4;
     border-radius: 4px;
@@ -662,9 +654,9 @@ st.markdown(_flatten_html(f"""
     letter-spacing: .5px;
     text-transform: uppercase;
     white-space: nowrap;
-}}
+}
 
-.source-location {{
+.source-location {
     color: #ff8b8b;
     font-size: 9px;
     font-weight: 800;
@@ -673,66 +665,35 @@ st.markdown(_flatten_html(f"""
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-}}
+}
 
-.source-headline {{
+.source-headline {
     width: 100%;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-}}
+    white-space: normal;
+    line-height: 1.3;
+}
 
 .source-headline a,
-.source-headline a:visited {{
+.source-headline a:visited {
     color: #ffffff !important;
     text-decoration: none !important;
     font-size: 14px;
     font-weight: 800;
-    line-height: 1.25;
-}}
+    line-height: 1.3;
+}
 
-.source-headline a:hover {{
+.source-headline a:hover {
     color: #75b9f5 !important;
-}}
+}
 
-.source-row-empty .source-name {{
+.source-row-empty .source-name {
     background: #4a5568;
-}}
+}
 
-.source-row-empty .source-headline {{
+.source-row-empty .source-headline {
     color: #aab5c7;
     font-size: 12px;
-}}
-
-@keyframes sourceFade {{
-    {src_kf0}% {{
-        opacity: 0;
-        visibility: visible;
-        transform: translateY(3px);
-    }}
-    {src_kf1}% {{
-        opacity: 1;
-        visibility: visible;
-        transform: translateY(0);
-    }}
-    {src_kf2}% {{
-        opacity: 1;
-        visibility: visible;
-        transform: translateY(0);
-    }}
-    {src_kf3}% {{
-        opacity: 0;
-        visibility: visible;
-        transform: translateY(-2px);
-    }}
-    100% {{
-        opacity: 0;
-        visibility: hidden;
-        transform: translateY(-2px);
-    }}
-}}
-
-{source_animation_rules}
+}
 </style>
 """), unsafe_allow_html=True)
 
@@ -952,8 +913,8 @@ if live_pin_items:
 # most phone screens. That mismatch is what forced fit_bounds() to
 # zoom out so far that pins ended up compressed into a small area
 # with a large band of empty, same-colored ocean above them.
-# 780px lines up with the CSS iframe height rule above
-# (calc(100vh - 92px)) now that only the source-access ticker
-# remains as a fixed bottom panel (the REAL-TIME BREAKING LOGS card
-# overlay was removed, freeing up the extra 220px it used to need).
-st_folium(m, width="100%", height=780, returned_objects=[], key="tactical_map_flush_v31")
+# 570px lines up with the CSS iframe height rule above
+# (calc(100vh - 300px)) now that the source-access ticker is 300px
+# tall (sized for 3-4 visible headline rows) as the one remaining
+# fixed bottom panel.
+st_folium(m, width="100%", height=570, returned_objects=[], key="tactical_map_flush_v31")
