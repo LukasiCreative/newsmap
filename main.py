@@ -515,16 +515,18 @@ if requested_article is not None:
     </style>
     """), unsafe_allow_html=True)
 
-    # Pure HTML button placed inside the left-docked anchor.
-    # The 'onclick' script rewrites the browser history state to drop '?article=X' cleanly,
-    # then clicks an invisible button to trigger a smooth internal Streamlit execution update.
+    # Plain anchor link styled as a button. The previous version used
+    # a <button onclick="..."> that tried to find and click an
+    # invisible Streamlit "secondary" button to trigger navigation —
+    # but this app never creates one (there's no st.button() call
+    # anywhere), so that lookup always failed silently and the button
+    # did nothing. A normal <a href="?"> is far more reliable: it's
+    # just standard browser navigation back to the page with no
+    # query params, which works the same whether viewed in Safari or
+    # wrapped in an iOS WKWebView.
     st.markdown(_flatten_html("""
         <div class="left-dock-anchor">
-            <button class="custom-back-btn" onclick="
-                window.top.history.pushState({}, '', window.top.location.pathname);
-                const btn = window.parent.document.querySelector('button[kind=\\'secondary\\']');
-                if(btn) btn.click(); else window.top.location.reload();
-            ">← Back to Map</button>
+            <a class="custom-back-btn" href="?">← Back to Map</a>
         </div>
     """), unsafe_allow_html=True)
 
@@ -536,7 +538,15 @@ if requested_article is not None:
             f'<div class="article-location">📍 {html.escape(str(article["location_name"]))}</div>'
             f'<div class="article-title">{html.escape(str(article["title"]))}</div>'
             f'<div class="article-summary">{html.escape(str(article["summary"]))}</div>'
-            f'<a class="article-open-btn" href="{html.escape(str(article["link"]), quote=True)}" target="_blank">Open Full Article Source ↗</a>'
+            # target="_blank" was removed here: it tells the browser to
+            # open a new tab/window, which regular Safari supports but
+            # a plain WKWebView (like the one wrapping this app in
+            # Xcode) does not handle by default — the app would need
+            # extra native delegate code to support that, otherwise the
+            # tap just silently does nothing. Without a target
+            # attribute, the link opens in the same view instead, which
+            # works everywhere.
+            f'<a class="article-open-btn" href="{html.escape(str(article["link"]), quote=True)}">Open Full Article Source ↗</a>'
             '</div>',
             unsafe_allow_html=True,
         )
