@@ -18,8 +18,6 @@ st.set_page_config(page_title="CRISIS COMMAND", layout="wide", page_icon="🛰�
 # is exactly the pattern that triggers this. Stripping leading
 # whitespace from every line before handing a string to st.markdown
 # avoids the problem everywhere, permanently. Defined here, right
-# after the imports, since it must exist before the first
-# st.markdown call below uses it.
 def _flatten_html(markup):
     return re.sub(r"(?m)^[ \t]+", "", markup)
 
@@ -99,31 +97,16 @@ st.markdown(_flatten_html("""
            color is nearly identical to the page background, that
            empty zoomed-out space looked like a blank/broken layout
            instead of "part of the map".
-           Capping the height (and reserving room for the two fixed
-           bottom panels: 92px source bar + 220px news overlay) lets
-           fit_bounds zoom in tighter so pins actually fill the view. */
+           Capping the height (and reserving room for the one
+           remaining fixed bottom panel: the 92px source-access
+           ticker — the REAL-TIME BREAKING LOGS card overlay was
+           removed) lets fit_bounds zoom in tighter so pins fill
+           more of the view. */
         div[data-testid="stCustomComponentV1"], iframe {
             width: 100vw !important;
-            height: calc(100vh - 312px) !important;
+            height: calc(100vh - 92px) !important;
             margin: 0px !important; padding: 0px !important; border: none !important;
         }
-
-        .threat-heading { color: #ffffff; font-size: 16px; line-height: 1; font-weight: 900; letter-spacing: .7px; margin: 0 0 9px 5px; text-shadow: 0 2px 5px rgba(0,0,0,.8); }
-
-        .threat-card {
-            display: block; box-sizing: border-box; min-height: 104px; width: 100%;
-            background: rgba(24, 29, 41, .98); border: 2px solid rgba(255,255,255,.12);
-            border-left: 6px solid #3182ce; border-radius: 8px; padding: 13px 18px 12px 18px;
-            box-shadow: 0 7px 28px rgba(0,0,0,.55);
-        }
-        .threat-card.media { border-left-color: #e05252; }
-        .threat-source { float: right; color: #fff; background: #3b70b4; border-radius: 5px; padding: 5px 9px; font-size: 10px; font-weight: 800; letter-spacing: .3px; }
-        .threat-card.media .threat-source { background: #6b7280; }
-        .threat-location { color: #75b9f5; font-size: 12px; line-height: 1.1; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
-        .threat-card.media .threat-location { color: #ff8b8b; }
-        .threat-title { color: #ffffff; font-size: 19px; line-height: 1.18; font-weight: 800; margin-right: 120px; }
-        .threat-title a { color: #ffffff !important; text-decoration: none !important; }
-        .threat-summary { color: #aab5c7; font-size: 12px; line-height: 1.3; margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     </style>
 """), unsafe_allow_html=True)
 
@@ -954,102 +937,8 @@ if live_pin_items:
 # most phone screens. That mismatch is what forced fit_bounds() to
 # zoom out so far that pins ended up compressed into a small area
 # with a large band of empty, same-colored ocean above them.
-# 650px lines up with the CSS iframe height rule above
-# (calc(100vh - 312px)) and leaves room for the two fixed bottom
-# panels (92px source bar + 220px news overlay).
-st_folium(m, width="100%", height=650, returned_objects=[], key="tactical_map_flush_v31")
-
-
-# =============================================================================
-# BOTTOM NEWS FEED (PURE CSS FIXED ANIMATION OVERLAY)
-# =============================================================================
-
-cards = []
-card_index = 0
-
-for alert_idx, item in enumerate(mapped_alerts):
-    if any(code_indicator in str(item["title"]).lower() for code_indicator in
-           ["style>", "keyframe", "margin", "padding", "threat-card"]): continue
-    card_class = "threat-card" if item["is_un_data"] else "threat-card media"
-
-    clean_summary_text = BeautifulSoup(str(item["summary"]), "html.parser").get_text()
-    clean_title_text = BeautifulSoup(str(item["title"]), "html.parser").get_text()
-
-    source = html.escape(str(item["source"]))
-    location = html.escape(str(item["location_name"]))
-    title = html.escape(clean_title_text)
-    summary = html.escape(clean_summary_text)
-    link = f"?article={alert_idx}"
-
-    cards.append(f"""
-        <div class="{card_class} feed-card-{card_index}">
-            <div class="threat-source">{source}</div>
-            <div class="threat-location">📍 {location}</div>
-            <div class="threat-title"><a href="{link}">{title} ↗</a></div>
-            <div class="threat-summary">{summary}</div>
-        </div>
-    """)
-    card_index += 1
-    if card_index >= 8: break
-
-card_count = len(cards)
-seconds_per_card = 5
-total_seconds = max(5, card_count * seconds_per_card)
-animation_rules = []
-
-if card_count:
-    visible_percent = (seconds_per_card / total_seconds) * 100
-    fade_percent = min(3.0, visible_percent * 0.15)
-    for index in range(card_count):
-        delay_offset = index * seconds_per_card
-        animation_rules.append(
-            f".feed-card-{index} {{ animation: threatFade {total_seconds}s infinite; animation-delay: {delay_offset}s; }}")
-else:
-    animation_rules.append(
-        ".empty-feed-card { opacity: 1 !important; visibility: visible !important; transform: translateY(0) !important; }")
-    cards.append("""
-        <div class="threat-card" style="border-left-color: #4a5568; opacity: 1 !important; visibility: visible !important; transform: translateY(0) !important;">
-            <div class="threat-location" style="color: #a0aec0;">🛰️ RADAR NOMINAL</div>
-            <div class="threat-title" style="font-size: 15px; font-weight: 700;">No active threat parameters detected by this app</div>
-            <div class="threat-summary">The system is actively monitoring real-time feeds. Alerts will populate automatically as relevant tracking data logs.</div>
-        </div>
-    """)
-
-animation_css = "\n".join(animation_rules)
-keyframe_0, keyframe_1, keyframe_2, keyframe_3 = 0, fade_percent if card_count else 0, (
-            visible_percent - fade_percent) if card_count else 100, visible_percent if card_count else 100
-
-feed_html = f"""
-    <style>
-        .threat-overlay {{
-            position: fixed !important; left: 0px !important; right: 0px !important; bottom: 72px !important;
-            width: 100vw !important; height: 220px !important; padding: 0 38px 18px 38px !important; box-sizing: border-box !important;
-            background: linear-gradient(to top, rgba(10,14,20,1.0) 0%, rgba(10,14,20,0.95) 70%, rgba(10,14,20,0.0) 100%) !important;
-            pointer-events: none !important; z-index: 2147483647 !important;
-            -webkit-transform: translateZ(0) !important; transform: translateZ(0) !important;
-            backface-visibility: hidden !important; -webkit-backface-visibility: hidden !important;
-        }}
-        .threat-panel {{ width: min(1120px, calc(100vw - 76px)) !important; margin: 0 auto !important; pointer-events: auto !important; position: relative !important; z-index: 2147483647 !important; }}
-        .threat-overlay .threat-card {{ position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; opacity: 0; transform: translateY(4px); visibility: hidden; transition: visibility 0s linear {total_seconds}s; z-index: 2147483647 !important; }}
-
-        @keyframes threatFade {{
-            {keyframe_0}% {{ opacity: 0; visibility: visible; transform: translateY(4px); }}
-            {keyframe_1}% {{ opacity: 1; visibility: visible; transform: translateY(0); }}
-            {keyframe_2}% {{ opacity: 1; visibility: visible; transform: translateY(0); }}
-            {keyframe_3}% {{ opacity: 0; visibility: visible; transform: translateY(-3px); }}
-            100% {{ opacity: 0; visibility: hidden; transform: translateY(-3px); }}
-        }}
-        {animation_css}
-    </style>
-
-    <div class="threat-overlay">
-        <div class="threat-panel">
-            <div class="threat-heading">🚨 REAL-TIME BREAKING LOGS ({card_count})</div>
-            <div style="position: relative; width: 100%; min-height: 120px; display: block; z-index: 2147483647 !important;">
-                {''.join(cards)}
-            </div>
-        </div>
-    </div>
-    """
-
-st.markdown(_flatten_html(feed_html), unsafe_allow_html=True)
+# 780px lines up with the CSS iframe height rule above
+# (calc(100vh - 92px)) now that only the source-access ticker
+# remains as a fixed bottom panel (the REAL-TIME BREAKING LOGS card
+# overlay was removed, freeing up the extra 220px it used to need).
+st_folium(m, width="100%", height=780, returned_objects=[], key="tactical_map_flush_v31")
