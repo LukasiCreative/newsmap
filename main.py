@@ -150,8 +150,15 @@ def find_location(title, summary):
 
 
 def relevant(title, summary):
+    # Previously used plain substring matching ("keyword in text"),
+    # which caused false positives: "war" is a substring of
+    # "warming", "warmer", "warmth", etc., so any weather/temperature
+    # headline mentioning "global warming" got incorrectly flagged as
+    # war-relevant and leaked into the war-news ticker. Word-boundary
+    # regex matching (\b...\b) requires "war" to appear as its own
+    # whole word — matching "war" and "wars" but not "warming".
     text = f"{title} {summary}".lower()
-    return any(keyword in text for keyword in WAR_KEYWORDS)
+    return any(re.search(rf"\b{re.escape(keyword)}\b", text) for keyword in WAR_KEYWORDS)
 
 
 # ─── SECTION 2: VERIFIED DISASTER DATA FEEDS ───
