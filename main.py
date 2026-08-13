@@ -99,13 +99,14 @@ st.markdown(_flatten_html("""
            instead of "part of the map".
            Capping the height (and reserving room for the one
            remaining fixed bottom panel: the source-access ticker,
-           now 300px tall to fit 3-4 headline rows without cutting
-           them off — the REAL-TIME BREAKING LOGS card overlay was
-           removed) lets fit_bounds zoom in tighter so pins fill
-           more of the view. */
+           190px tall — sized for one headline at a time, wrapped
+           across multiple lines instead of cut off, cycling via JS
+           — the REAL-TIME BREAKING LOGS card overlay was removed)
+           lets fit_bounds zoom in tighter so pins fill more of the
+           view. */
         div[data-testid="stCustomComponentV1"], iframe {
             width: 100vw !important;
-            height: calc(100vh - 300px) !important;
+            height: calc(100vh - 190px) !important;
             margin: 0px !important; padding: 0px !important; border: none !important;
         }
     </style>
@@ -532,12 +533,14 @@ if requested_article is not None:
     st.stop()
 
 # ─── SOURCE ACCESS PANEL / LIVE PIN HEADLINES ───
-# Was previously a single row that cycled/faded through headlines
-# one at a time, truncating each with an ellipsis if it didn't fit
-# on one line. Now shows a static, scrollable list of up to 8
-# headlines with roughly 3-4 visible at once (the rest reachable by
-# scrolling within the panel), and headlines are allowed to wrap
-# onto a second line instead of being cut off.
+# One headline visible at a time (a scroller, not a static list),
+# but unlike the very first version, the text is allowed to wrap
+# across multiple lines instead of being cut off with "...". The
+# rotation itself is driven by client-side JS (setInterval swapping
+# innerHTML + a CSS fade) rather than the old CSS keyframe-percentage
+# trick — that was fragile because the timing had to be hand-matched
+# to the row count; JS just advances through the list on a plain
+# timer regardless of how many rows there are.
 source_rows = []
 source_alert_items = []
 
@@ -563,8 +566,7 @@ for alert_idx, item in enumerate(mapped_alerts):
         f'</div>'
     )
 
-# Keep the list to the first 8 live alerts, same as before — the
-# panel shows ~3-4 at a time and the rest are reachable by scrolling.
+# Same first-8 cap as before, now cycled one-at-a-time by JS.
 source_rows = source_alert_items[:8]
 
 # If there are no live alerts, keep the banner visible and explain why.
@@ -589,7 +591,7 @@ st.markdown(_flatten_html("""
     right: 0 !important;
     bottom: 0 !important;
     width: 100vw !important;
-    height: 300px !important;
+    height: 190px !important;
     box-sizing: border-box !important;
     overflow: hidden !important;
     z-index: 2147483000 !important;
@@ -621,27 +623,27 @@ st.markdown(_flatten_html("""
     flex: 1 1 auto;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    opacity: 1;
+    transition: opacity 0.35s ease;
+}
+
+.source-access-body.source-fading {
+    opacity: 0;
 }
 
 .source-row {
     display: block;
     width: 100%;
-    padding: 7px 0;
-    border-top: 1px solid rgba(255,255,255,.07);
+    padding: 0;
     box-sizing: border-box;
     font-size: 12px;
-}
-
-.source-row:first-child {
-    border-top: none;
-    padding-top: 0;
 }
 
 .source-headline-wrap {
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-bottom: 3px;
+    margin-bottom: 4px;
 }
 
 .source-name {
@@ -670,16 +672,16 @@ st.markdown(_flatten_html("""
 .source-headline {
     width: 100%;
     white-space: normal;
-    line-height: 1.3;
+    line-height: 1.35;
 }
 
 .source-headline a,
 .source-headline a:visited {
     color: #ffffff !important;
     text-decoration: none !important;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 800;
-    line-height: 1.3;
+    line-height: 1.35;
 }
 
 .source-headline a:hover {
@@ -697,18 +699,37 @@ st.markdown(_flatten_html("""
 </style>
 """), unsafe_allow_html=True)
 
-st.markdown(
-    '<div class="source-access">'
-    '<div class="source-access-head">'
-    '<span>🛰️ LIVE DATA SOURCES</span>'
-    '<span>LIVE PIN HEADLINES</span>'
-    '</div>'
-    '<div class="source-access-body">'
-    + ''.join(source_rows)
-    + '</div>'
-    '</div>',
-    unsafe_allow_html=True,
-)
+# The body starts with the first headline already in place (so it's
+# visible immediately, before any JS runs). The <script> below then
+# takes over, fading out the current one, swapping in the next from
+# the `sourceRows` array, and fading back in — repeating on a timer.
+# json.dumps handles all the escaping for embedding the HTML strings
+# safely inside a JS array literal.
+st.markdown(_flatten_html(f"""
+<div class="source-access">
+    <div class="source-access-head">
+        <span>🛰️ LIVE DATA SOURCES</span>
+        <span>LIVE PIN HEADLINES</span>
+    </div>
+    <div class="source-access-body" id="source-ticker-body">{source_rows[0]}</div>
+</div>
+<script>
+(function() {{
+    var rows = {json.dumps(source_rows)};
+    var idx = 0;
+    var el = document.getElementById('source-ticker-body');
+    if (!el || rows.length <= 1) return;
+    setInterval(function() {{
+        el.classList.add('source-fading');
+        setTimeout(function() {{
+            idx = (idx + 1) % rows.length;
+            el.innerHTML = rows[idx];
+            el.classList.remove('source-fading');
+        }}, 350);
+    }}, 5000);
+}})();
+</script>
+"""), unsafe_allow_html=True)
 
 # ─── SECTION 3: MAP CANVAS LAYER RENDERING ───
 # The viewport is derived ONLY from real coordinates supplied by live feeds.
@@ -913,8 +934,8 @@ if live_pin_items:
 # most phone screens. That mismatch is what forced fit_bounds() to
 # zoom out so far that pins ended up compressed into a small area
 # with a large band of empty, same-colored ocean above them.
-# 570px lines up with the CSS iframe height rule above
-# (calc(100vh - 300px)) now that the source-access ticker is 300px
-# tall (sized for 3-4 visible headline rows) as the one remaining
-# fixed bottom panel.
-st_folium(m, width="100%", height=570, returned_objects=[], key="tactical_map_flush_v31")
+# 680px lines up with the CSS iframe height rule above
+# (calc(100vh - 190px)) now that the source-access ticker is 190px
+# tall (one headline at a time, wrapped instead of cut off) as the
+# one remaining fixed bottom panel.
+st_folium(m, width="100%", height=680, returned_objects=[], key="tactical_map_flush_v31")
