@@ -544,7 +544,15 @@ if requested_article is not None:
 source_rows = []
 source_alert_items = []
 
+# Only the red pins go in the ticker — those are the war/conflict
+# media items (BBC, Sky, Al Jazeera, etc., matched against
+# WAR_KEYWORDS in fetch_live_media). Blue pins (GDACS/ReliefWeb/USGS
+# — is_un_data=True — earthquakes, storms, general disaster alerts)
+# are still plotted on the map, just left out of this headline feed.
 for alert_idx, item in enumerate(mapped_alerts):
+    if item.get("is_un_data"):
+        continue
+
     title_text = BeautifulSoup(str(item.get("title", "")), "html.parser").get_text()
     title_text = clean_text(title_text)
     source_text = clean_text(str(item.get("source", "")))
