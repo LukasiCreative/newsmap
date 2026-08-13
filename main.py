@@ -856,11 +856,26 @@ if marker_click_scripts:
 # Automatically fit the map to the real pins.
 # Regional clusters zoom in; globally separated events zoom out.
 # The map remains a single, non-repeating world view.
-if live_pin_items:
-    lats = [lat for _, _, lat, _ in live_pin_items]
-    lons = [lon for _, _, _, lon in live_pin_items]
+#
+# ─── DEFAULT VIEW: PRIORITIZE THE AFRICA/MIDDLE EAST CLUSTER ─────
+# Every pin still gets plotted on the map regardless. But for the
+# DEFAULT zoom/center, we only fit bounds around the war/conflict
+# ("media", red) pins — GDACS/USGS ("is_un_data", blue) pins are
+# scattered worldwide (earthquakes, storms, floods anywhere), while
+# the war/conflict pins cluster tightly around Africa/Middle East by
+# design of GEO_DATABASE (Gaza, Israel, Lebanon, Syria, Yemen, Iran,
+# Iraq, Egypt, Sudan, Somalia, Libya, etc). Fitting bounds to the
+# whole worldwide set was dragging the zoom out further than needed
+# just to include occasional pins in the Americas/Asia/Australia.
+focus_pin_items = [item_tuple for item_tuple in live_pin_items if not item_tuple[1]["is_un_data"]]
+if not focus_pin_items:
+    focus_pin_items = live_pin_items
 
-    if len(live_pin_items) == 1:
+if live_pin_items:
+    lats = [lat for _, _, lat, _ in focus_pin_items]
+    lons = [lon for _, _, _, lon in focus_pin_items]
+
+    if len(focus_pin_items) == 1:
         m.location = [lats[0], lons[0]]
         m.options["zoom"] = 8
     else:
@@ -905,8 +920,8 @@ if live_pin_items:
 # after load and on every window resize. This forces Leaflet to
 # recenter and re-tile using the real, final container dimensions.
 if live_pin_items:
-    if len(live_pin_items) == 1:
-        _reapply_view_js = f"{m.get_name()}.setView([{lats[0]}, {lons[0]}], 7);"
+    if len(focus_pin_items) == 1:
+        _reapply_view_js = f"{m.get_name()}.setView([{lats[0]}, {lons[0]}], 8);"
     else:
         _reapply_view_js = (
             f"{m.get_name()}.fitBounds([[{south}, {west_bound}], [{north}, {east_bound}]], "
