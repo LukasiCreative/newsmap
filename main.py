@@ -72,8 +72,21 @@ st.markdown("""
         [data-testid="stElementContainer"]:first-child {margin-top: 0px !important; padding-top: 0px !important;}
         div[data-testid="stMainBlockContainer"] {padding-top: 0px !important;}
 
+        /* ─── MAP IFRAME HEIGHT FIX ───────────────────────────────
+           Previously this was forced to 100vh, which made the
+           Folium map container almost as tall as the whole phone
+           screen. fit_bounds() then had to zoom WAY out to satisfy
+           that height, pulling in a huge amount of empty ocean
+           above the actual pin cluster. Because the ocean tile
+           color is nearly identical to the page background, that
+           empty zoomed-out space looked like a blank/broken layout
+           instead of "part of the map".
+           Capping the height (and reserving room for the two fixed
+           bottom panels: 92px source bar + 220px news overlay) lets
+           fit_bounds zoom in tighter so pins actually fill the view. */
         div[data-testid="stCustomComponentV1"], iframe {
-            width: 100vw !important; height: 100vh !important; 
+            width: 100vw !important;
+            height: calc(100vh - 312px) !important;
             margin: 0px !important; padding: 0px !important; border: none !important;
         }
 
@@ -883,7 +896,15 @@ if live_pin_items:
             max_zoom=8
         )
 
-st_folium(m, width="100%", height=1000, returned_objects=[], key="tactical_map_flush_v31")
+# ─── MAP RENDER HEIGHT FIX ───────────────────────────────────────
+# Previously fixed at height=1000 (px), which is much taller than
+# most phone screens. That mismatch is what forced fit_bounds() to
+# zoom out so far that pins ended up compressed into a small area
+# with a large band of empty, same-colored ocean above them.
+# 650px lines up with the CSS iframe height rule above
+# (calc(100vh - 312px)) and leaves room for the two fixed bottom
+# panels (92px source bar + 220px news overlay).
+st_folium(m, width="100%", height=650, returned_objects=[], key="tactical_map_flush_v31")
 
 
 # =============================================================================
@@ -979,4 +1000,3 @@ feed_html = f"""
     """
 
 st.markdown(feed_html, unsafe_allow_html=True)
- 
