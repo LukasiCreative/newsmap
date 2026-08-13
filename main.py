@@ -489,6 +489,34 @@ if requested_article is not None:
             color: #75b9f5 !important;
         }
 
+        /* Native Streamlit Back to Map button */
+        div[data-testid="stButton"] button[kind="secondary"] {
+            background-color: #181d29 !important;
+            color: #ffffff !important;
+            border: 2px solid rgba(255,255,255,.18) !important;
+            border-radius: 8px !important;
+            padding: 10px 20px !important;
+            font-size: 13px !important;
+            font-weight: 800 !important;
+            font-family: Arial, sans-serif !important;
+            box-shadow: 0 6px 20px rgba(0,0,0,.5) !important;
+            cursor: pointer !important;
+        }
+
+        div[data-testid="stButton"] button[kind="secondary"]:hover {
+            background-color: #232a3b !important;
+            border-color: #75b9f5 !important;
+            color: #75b9f5 !important;
+        }
+
+        div[data-testid="stButton"] {
+            position: fixed !important;
+            top: 40px !important;
+            left: 40px !important;
+            z-index: 2147483647 !important;
+            width: auto !important;
+        }
+
         .article-wrap { 
             max-width: 680px; 
             margin: 120px auto 40px; 
@@ -515,22 +543,17 @@ if requested_article is not None:
     </style>
     """), unsafe_allow_html=True)
 
-    # Switched from a plain <a href="?"> to a <button onclick="...">
-    # that explicitly sets window.location.href. Plain anchor clicks
-    # weren't registering at all — most likely something on the page
-    # (Streamlit's own client-side routing, which handles some link
-    # clicks itself to avoid full page reloads) was intercepting the
-    # click and not handling this particular href correctly.
-    # Directly assigning window.location.href always forces a real,
-    # full browser navigation, bypassing any such interception.
-    st.markdown(_flatten_html("""
-        <div class="left-dock-anchor">
-            <button class="custom-back-btn"
-                    onclick="window.location.replace(window.location.pathname);">
-                ← Back to Map
-            </button>
-        </div>
-    """), unsafe_allow_html=True)
+    # IMPORTANT:
+    # Do NOT use an HTML <button onclick="..."> here.
+    # Streamlit sanitizes/isolates injected HTML and JavaScript, so an
+    # onclick handler inside st.markdown() is not a reliable way to
+    # trigger navigation in a Streamlit app hosted on Render.
+    #
+    # Use a real Streamlit button instead. This executes on the Python
+    # side, clears the article query parameter, and reruns the app.
+    if st.button("← Back to Map", key="back_to_map"):
+        st.query_params.clear()
+        st.rerun()
 
     # Render Article Body Content
     if article:
