@@ -6,6 +6,24 @@ from streamlit_folium import st_folium
 
 st.set_page_config(page_title="CRISIS COMMAND", layout="wide", page_icon="🛰️", initial_sidebar_state="collapsed")
 
+# ─── WHY THE "<div class=...>" TEXT WAS SHOWING UP RAW ───────────
+# st.markdown(..., unsafe_allow_html=True) still runs the string
+# through a Markdown parser before allowing HTML through. Markdown's
+# rule: any line indented 4+ spaces that follows a blank line gets
+# rendered as a literal CODE BLOCK (plain escaped text) instead of
+# being treated as HTML. Every HTML/CSS string in this file is
+# written with Python-source-matching indentation for readability
+# (4/8/12 spaces), and feed_html in particular has a blank line
+# right after "</style>" followed by an indented "<div ...>" — which
+# is exactly the pattern that triggers this. Stripping leading
+# whitespace from every line before handing a string to st.markdown
+# avoids the problem everywhere, permanently. Defined here, right
+# after the imports, since it must exist before the first
+# st.markdown call below uses it.
+def _flatten_html(markup):
+    return re.sub(r"(?m)^[ \t]+", "", markup)
+
+
 # ─── SECTION 1: SYSTEM STYLES (ELIMINATING ALL SPACING GAPS) ───
 st.markdown(_flatten_html("""
     <style>
@@ -131,22 +149,6 @@ REQUEST_HEADERS = {
     "User-Agent": "CrisisCommand/2.0 (+https://gdacs.org; disaster-feed-client)",
     "Accept": "application/json, application/xml, text/xml, application/atom+xml, */*",
 }
-
-
-# ─── WHY THE "<div class=...>" TEXT WAS SHOWING UP RAW ───────────
-# st.markdown(..., unsafe_allow_html=True) still runs the string
-# through a Markdown parser before allowing HTML through. Markdown's
-# rule: any line indented 4+ spaces that follows a blank line gets
-# rendered as a literal CODE BLOCK (plain escaped text) instead of
-# being treated as HTML. Every HTML/CSS string in this file is
-# written with Python-source-matching indentation for readability
-# (4/8/12 spaces), and feed_html in particular has a blank line
-# right after "</style>" followed by an indented "<div ...>" — which
-# is exactly the pattern that triggers this. Stripping leading
-# whitespace from every line before handing a string to st.markdown
-# avoids the problem everywhere, permanently.
-def _flatten_html(markup):
-    return re.sub(r"(?m)^[ \t]+", "", markup)
 
 
 def clean_text(value):
