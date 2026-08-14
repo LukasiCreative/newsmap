@@ -31,15 +31,15 @@ def _flatten_html(markup):
     return re.sub(r"(?m)^[ \t]+", "", markup)
 
 # ================================================================
-# CRITICAL CSS – map fullscreen, dark background locked, zero white flash
+# CRITICAL CSS – map fullscreen, ticker fixed overlay, matching background
 # ================================================================
 st.markdown(
     _flatten_html("""
     <style>
-        /* Force dark color scheme at browser rendering level */
+        /* Lock dark color scheme and exact matching map background */
         :root {
             color-scheme: dark !important;
-            background-color: #111827 !important;
+            background-color: #262626 !important;
         }
 
         /* Hide all Streamlit chrome */
@@ -52,45 +52,7 @@ st.markdown(
             display: none !important;
         }
 
-        /* 100% INVISIBLE TRANSLATE & ZERO WHITE FLASH */
-        .goog-te-banner-frame,
-        .goog-te-banner-frame.skiptranslate,
-        iframe.goog-te-banner-frame,
-        #goog-gt-tt,
-        .goog-te-balloon-frame,
-        .goog-tooltip,
-        .goog-tooltip:hover,
-        .goog-text-highlight,
-        .goog-te-spinner-pos {
-            display: none !important;
-            visibility: hidden !important;
-            opacity: 0 !important;
-            pointer-events: none !important;
-            background: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
-        }
-        
-        body {
-            top: 0px !important;
-            position: static !important;
-            background: #111827 !important;
-            background-color: #111827 !important;
-        }
-
-        #google_translate_element {
-            display: none !important;
-            visibility: hidden !important;
-            height: 0 !important;
-            width: 0 !important;
-            overflow: hidden !important;
-        }
-
-        .skiptranslate:not(#crisis-lang-picker):not(#crisis-lang-picker *) {
-            display: none !important;
-        }
-
-        /* Make all containers strictly dark to avoid white paint flash */
+        /* Make all containers strictly #262626 to eliminate any white paint */
         html, body, #root, .stApp, .stAppViewContainer, .stAppViewBlockContainer,
         .main, .main .block-container, iframe {
             margin: 0 !important;
@@ -99,8 +61,8 @@ st.markdown(
             height: 100vh !important;
             height: 100dvh !important;
             overflow: hidden !important;
-            background: #111827 !important;
-            background-color: #111827 !important;
+            background: #262626 !important;
+            background-color: #262626 !important;
             transform: none !important;
             filter: none !important;
         }
@@ -225,7 +187,7 @@ st.markdown(
             padding: 8px;
         }
 
-        /* Headless ticker component */
+        /* Headless ticker driver component */
         div[data-testid="stCustomComponentV1"]:not(:has(iframe.leaflet-container)),
         div[data-testid="stElementContainer"]:has(div[data-testid="stCustomComponentV1"]:not(:has(iframe.leaflet-container))) {
             display: none !important;
@@ -249,7 +211,7 @@ placeholder = st.empty()
 with placeholder:
     st.markdown(
         """
-        <div style="display:flex; justify-content:center; align-items:flex-start; padding-top:22vh; height:100vh; background:#111827; box-sizing:border-box;">
+        <div style="display:flex; justify-content:center; align-items:flex-start; padding-top:22vh; height:100vh; background:#262626; box-sizing:border-box;">
             <div style="text-align:center; color:white; font-family:sans-serif;">
                 <div style="font-size:52px; margin-bottom:14px;">🛰️</div>
                 <h1 style="margin:0 0 8px 0; font-size:26px; font-weight:800; letter-spacing:0.5px; color:#ffffff;">Loading Crisis Data...</h1>
@@ -586,7 +548,7 @@ if requested_article is not None:
             margin: 0 !important;
             max-width: 100% !important;
             width: 100% !important;
-            background-color: #111827 !important;
+            background-color: #262626 !important;
         }
         div[data-testid="stButton"] {
             position: fixed !important;
@@ -879,7 +841,7 @@ if banner_idx is not None and 0 <= banner_idx < len(mapped_alerts):
 
 is_article_str = "true" if requested_article is not None else "false"
 
-# Build driver component with zero-flash translation
+# Build driver component with in-memory zero-flash translation
 components.html(
     """
     <!DOCTYPE html>
@@ -888,20 +850,19 @@ components.html(
         <meta charset="UTF-8">
         <meta name="color-scheme" content="dark">
         <style>
-            html, body { background: #111827 !important; color-scheme: dark !important; }
+            html, body { background: #262626 !important; color-scheme: dark !important; }
         </style>
     </head>
-    <body style="background:#111827;">
-        <div id="google_translate_element" style="display:none;"></div>
+    <body style="background:#262626;">
         <script>
             const frame = window.frameElement;
             const doc = frame ? frame.ownerDocument : document;
             const win = doc.defaultView;
 
-            // Enforce dark background on the top-level window to kill white flash
+            // Lock background strictly to #262626 to kill white flash
             try {
-                doc.documentElement.style.backgroundColor = "#111827";
-                doc.body.style.backgroundColor = "#111827";
+                doc.documentElement.style.backgroundColor = "#262626";
+                doc.body.style.backgroundColor = "#262626";
             } catch(e) {}
 
             function appUrl(query) {
@@ -909,7 +870,7 @@ components.html(
             }
 
             // ==========================================
-            // SILENT TRANSLATION & TOP-RIGHT FLAG PICKER
+            // ZERO-FLASH IN-MEMORY TRANSLATION ENGINE
             // ==========================================
             const languages = [
                 { code: 'en', flag: '🇬🇧', name: 'English' },
@@ -924,40 +885,59 @@ components.html(
                 { code: 'he', flag: '🇮🇱', name: 'Hebrew' }
             ];
 
-            function setGoogleTranslateCookie(langCode) {
-                const value = '/auto/' + langCode;
-                const domain = win.location.hostname;
-                doc.cookie = 'googtrans=' + value + ';path=/;';
-                doc.cookie = 'googtrans=' + value + ';path=/;domain=' + domain + ';';
-                doc.cookie = 'googtrans=' + value + ';path=/;domain=.' + domain + ';';
-            }
+            let activeLang = localStorage.getItem('crisis_selected_lang') || 'en';
+            const translationCache = {};
 
-            function triggerTranslate(langCode) {
-                setGoogleTranslateCookie(langCode);
-                const select = doc.querySelector('.goog-te-combo');
-                if (select) {
-                    select.value = langCode;
-                    select.dispatchEvent(new Event('change'));
-                } else {
-                    // Smooth reload without white flash
-                    try { doc.documentElement.style.backgroundColor = '#111827'; } catch(e){}
-                    win.location.reload();
+            async function translateText(text, targetLang) {
+                if (!text || targetLang === 'en') return text;
+                const cacheKey = targetLang + '::' + text;
+                if (translationCache[cacheKey]) return translationCache[cacheKey];
+
+                try {
+                    const res = await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=' + encodeURIComponent(targetLang) + '&dt=t&q=' + encodeURIComponent(text));
+                    if (!res.ok) return text;
+                    const data = await res.json();
+                    let translated = '';
+                    if (data && data[0]) {
+                        for (let i = 0; i < data[0].length; i++) {
+                            if (data[0][i][0]) translated += data[0][i][0];
+                        }
+                    }
+                    const result = translated || text;
+                    translationCache[cacheKey] = result;
+                    return result;
+                } catch(e) {
+                    return text;
                 }
             }
 
-            function initGoogleTranslate() {
-                if (!doc.getElementById('google-translate-script')) {
-                    const script = doc.createElement('script');
-                    script.id = 'google-translate-script';
-                    script.src = 'https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
-                    doc.head.appendChild(script);
+            // Translate full article view in-place if open
+            async function translateArticleView() {
+                if (activeLang === 'en') return;
+                const titleEl = doc.querySelector('.article-title');
+                const summaryEl = doc.querySelector('.article-summary');
+                const locEl = doc.querySelector('.article-location');
 
-                    win.googleTranslateElementInit = function() {
-                        new win.google.translate.TranslateElement({
-                            pageLanguage: 'en',
-                            autoDisplay: false
-                        }, 'google_translate_element');
-                    };
+                if (titleEl && !titleEl.dataset.orig) {
+                    titleEl.dataset.orig = titleEl.textContent;
+                }
+                if (summaryEl && !summaryEl.dataset.orig) {
+                    summaryEl.dataset.orig = summaryEl.textContent;
+                }
+                if (locEl && !locEl.dataset.orig) {
+                    locEl.dataset.orig = locEl.textContent;
+                }
+
+                if (titleEl && titleEl.dataset.orig) {
+                    titleEl.textContent = await translateText(titleEl.dataset.orig, activeLang);
+                }
+                if (summaryEl && summaryEl.dataset.orig) {
+                    summaryEl.textContent = await translateText(summaryEl.dataset.orig, activeLang);
+                }
+                if (locEl && locEl.dataset.orig) {
+                    const cleanLoc = locEl.dataset.orig.replace('📍', '').trim();
+                    const transLoc = await translateText(cleanLoc, activeLang);
+                    locEl.textContent = '📍 ' + transLoc;
                 }
             }
 
@@ -970,13 +950,7 @@ components.html(
                     doc.body.appendChild(container);
                 }
 
-                let currentLang = 'en';
-                const match = doc.cookie.match(/(?:^|; )googtrans=\\/auto\\/([^;]+)/);
-                if (match && match[1]) {
-                    currentLang = match[1];
-                }
-
-                const activeLangObj = languages.find(function(l) { return l.code === currentLang; }) || languages[0];
+                const activeLangObj = languages.find(function(l) { return l.code === activeLang; }) || languages[0];
 
                 let buttonsHtml = '';
                 for (let i = 0; i < languages.length; i++) {
@@ -1009,17 +983,26 @@ components.html(
 
                 const itemBtns = menu.querySelectorAll('button[data-code]');
                 for (let j = 0; j < itemBtns.length; j++) {
-                    itemBtns[j].addEventListener('click', function(e) {
+                    itemBtns[j].addEventListener('click', async function(e) {
                         e.stopPropagation();
                         const code = this.getAttribute('data-code');
+                        activeLang = code;
+                        localStorage.setItem('crisis_selected_lang', code);
                         menu.style.display = 'none';
-                        triggerTranslate(code);
+                        const newLangObj = languages.find(function(l) { return l.code === activeLang; }) || languages[0];
+                        container.querySelector('#current-flag').textContent = newLangObj.flag;
+                        
+                        // Update active views in place without page reloads
+                        if (typeof displayCurrent === 'function') {
+                            displayCurrent();
+                        }
+                        translateArticleView();
                     });
                 }
             }
 
-            initGoogleTranslate();
             buildLanguageSelector();
+            translateArticleView();
 
             // ==========================================
             // TICKER OVERLAY (BOTTOM)
@@ -1053,7 +1036,7 @@ components.html(
                 let currentIndex = 0;
                 let holdUntil = 0;
 
-                function renderHeadline(item) {
+                async function renderHeadline(item) {
                     const wrapper = doc.createElement("div");
                     wrapper.className = "headline";
                     const top = doc.createElement("div");
@@ -1063,14 +1046,20 @@ components.html(
                     source.textContent = item.source;
                     const location = doc.createElement("span");
                     location.className = "location";
-                    location.textContent = "📍 " + item.location;
+                    
+                    const translatedLocation = await translateText(item.location, activeLang);
+                    location.textContent = "📍 " + translatedLocation;
+                    
                     top.appendChild(source);
                     top.appendChild(location);
                     const title = doc.createElement("div");
                     title.className = "title";
                     const link = doc.createElement("a");
                     link.href = appUrl(item.url);
-                    link.textContent = item.title + " ↗";
+                    
+                    const translatedTitle = await translateText(item.title, activeLang);
+                    link.textContent = translatedTitle + " ↗";
+                    
                     title.appendChild(link);
                     wrapper.appendChild(top);
                     wrapper.appendChild(title);
@@ -1099,12 +1088,13 @@ components.html(
                     content.appendChild(node);
                 }
 
-                function showPinHeadline(index) {
+                async function showPinHeadline(index) {
                     const item = pinLookup[String(index)];
                     if (!item) return;
                     holdUntil = Date.now() + 15000;
                     content.classList.remove("fade");
-                    setContent(renderHeadline(item));
+                    const rendered = await renderHeadline(item);
+                    setContent(rendered);
                 }
 
                 function navigateApp(query) {
@@ -1158,12 +1148,13 @@ components.html(
                     if (idx !== null && !isNaN(idx)) showPinHeadline(idx);
                 }, 400);
 
-                function displayCurrent() {
+                async function displayCurrent() {
                     if (Date.now() < holdUntil) return;
                     content.classList.add("fade");
-                    setTimeout(function () {
+                    setTimeout(async function () {
                         if (currentIndex < headlines.length) {
-                            setContent(renderHeadline(headlines[currentIndex]));
+                            const rendered = await renderHeadline(headlines[currentIndex]);
+                            setContent(rendered);
                         } else {
                             setContent(renderBanner());
                         }
@@ -1180,7 +1171,7 @@ components.html(
                 }
 
                 if (bannerArticle) {
-                    setContent(renderHeadline(bannerArticle));
+                    renderHeadline(bannerArticle).then(setContent);
                     setTimeout(function () {
                         currentIndex = 0;
                         displayCurrent();
@@ -1188,7 +1179,7 @@ components.html(
                     }, DISPLAY_TIME);
                 } else {
                     if (headlines.length > 0) {
-                        setContent(renderHeadline(headlines[0]));
+                        renderHeadline(headlines[0]).then(setContent);
                         currentIndex = 0;
                     } else {
                         setContent(renderBanner());
