@@ -38,7 +38,7 @@ def _flatten_html(markup):
 
 
 # ================================================================
-# GLOBAL CSS – now also forces full‑screen, no scroll
+# GLOBAL CSS – force full‑screen, no scroll, flex layout
 # ================================================================
 
 st.markdown(
@@ -69,28 +69,29 @@ st.markdown(
             height: 100% !important;
             background-color: #262626 !important;
         }
-        /* Force the two main containers to fill the space */
+        /* Main vertical container – flex column */
         div[data-testid="stVerticalBlock"] {
             height: 100% !important;
             display: flex !important;
             flex-direction: column !important;
         }
-        /* The ticker container (custom component) */
-        div[data-testid="stCustomComponentV1"] {
-            flex: 0 0 auto !important;   /* fixed height */
-            width: 100% !important;
-        }
-        /* The map container – takes remaining space */
+        /* Map container (folium iframe) – takes remaining space */
         div[data-testid="stElementContainer"]:has(iframe.leaflet-container) {
             flex: 1 1 auto !important;
             min-height: 0 !important;
             height: 100% !important;
         }
-        /* The folium iframe itself */
         iframe.leaflet-container {
             width: 100% !important;
             height: 100% !important;
             display: block !important;
+        }
+        /* Ticker (custom component) – fixed height at bottom */
+        div[data-testid="stCustomComponentV1"] {
+            flex: 0 0 140px !important;   /* fixed height */
+            width: 100% !important;
+            margin-top: 0 !important;
+            border-top: 1px solid rgba(255,255,255,.12);
         }
     </style>
     """),
@@ -711,10 +712,19 @@ if live_pin_items:
 
 
 # ================================================================
-# RENDER ORDER: TICKER ON TOP, MAP BELOW
+# RENDER ORDER: MAP FIRST (top), TICKER LAST (bottom)
 # ================================================================
 
-# 1. TICKER COMPONENT (now first)
+# 1. Map render (takes most of the space)
+st_folium(
+    m,
+    width="100%",
+    height=600,          # CSS will stretch it to fill
+    returned_objects=[],
+    key="tactical_map_flush_v31"
+)
+
+# 2. Ticker component (bottom) – SLOWED DOWN
 ticker_json = json.dumps(ticker_items, ensure_ascii=False)
 banner_json = json.dumps(banner_data)
 
@@ -740,20 +750,20 @@ components.html(
                 overflow: hidden;
                 background: #111827;
                 color: white;
-                border-bottom: 1px solid rgba(255,255,255,.12);  /* separator at bottom */
-                box-shadow: 0 5px 18px rgba(0,0,0,.35);
+                border-top: 1px solid rgba(255,255,255,.12);
+                box-shadow: 0 -5px 18px rgba(0,0,0,.35);
             }}
             #ticker-header {{
                 position: absolute;
                 left: 0; right: 0; top: 0;
-                height: 30px;
+                height: 28px;
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
                 padding: 0 14px;
-                font-size: 10px;
+                font-size: 9px;
                 font-weight: 900;
-                letter-spacing: .6px;
+                letter-spacing: .5px;
                 text-transform: uppercase;
                 color: #e5e7eb;
                 z-index: 10;
@@ -761,20 +771,20 @@ components.html(
             #ticker-content {{
                 position: absolute;
                 left: 0; right: 0;
-                top: 30px; bottom: 0;
-                padding: 8px 16px;
+                top: 28px; bottom: 0;
+                padding: 6px 16px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 opacity: 1;
-                transition: opacity .35s ease;
+                transition: opacity .4s ease;
             }}
             #ticker-content.fade {{ opacity: 0; }}
             .headline {{ width: 100%; }}
             .headline-top {{
                 display: flex;
                 align-items: center;
-                gap: 8px;
+                gap: 6px;
                 margin-bottom: 4px;
             }}
             .source {{
@@ -828,10 +838,10 @@ components.html(
             .banner-fallback {{
                 color: #202938;
                 font-family: Georgia, serif;
-                font-size: 20px;
+                font-size: 18px;
                 font-weight: 700;
                 text-align: center;
-                padding: 10px;
+                padding: 8px;
             }}
         </style>
     </head>
@@ -846,8 +856,8 @@ components.html(
         <script>
             const headlines = {ticker_json};
             const banner = {banner_json};
-            const DISPLAY_TIME = 5000;
-            const FADE_TIME = 350;
+            const DISPLAY_TIME = 8000;   // slower: 8 seconds per item
+            const FADE_TIME = 400;
             let currentIndex = 0;
             const content = document.getElementById("ticker-content");
 
@@ -922,15 +932,6 @@ components.html(
     </body>
     </html>
     """,
-    height=150,          # fixed height for ticker
+    height=140,          # fixed height for ticker (slim)
     scrolling=False
-)
-
-# 2. MAP RENDER (now below, taking remaining space)
-st_folium(
-    m,
-    width="100%",
-    height=600,          # will be overridden by CSS flex to fill rest
-    returned_objects=[],
-    key="tactical_map_flush_v31"
 )
