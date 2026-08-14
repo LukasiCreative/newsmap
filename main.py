@@ -38,19 +38,21 @@ def _flatten_html(markup):
 
 
 # ================================================================
-# GLOBAL CSS – force full‑screen, no scroll, flex layout
+# GLOBAL CSS – Map full viewport, ticker overlaid at bottom
 # ================================================================
 
 st.markdown(
     _flatten_html("""
     <style>
+        /* Remove all margins and scroll */
         html, body {
             margin: 0 !important;
             padding: 0 !important;
             height: 100% !important;
             overflow: hidden !important;
-            background-color: #262626 !important;
+            background: #262626 !important;
         }
+
         /* Hide Streamlit chrome */
         #MainMenu, footer, header, [data-testid="stHeader"],
         [data-testid="stToolbar"], [data-testid="stToolbarActions"],
@@ -60,6 +62,8 @@ st.markdown(
         div[class*="StatusWidget"], div[class*="Toolbar"], div[class*="Decoration"] {
             display: none !important;
         }
+
+        /* Main app containers – full screen */
         .stApp, .stAppViewContainer, .stAppViewBlockContainer,
         .main, .main .block-container {
             padding: 0 !important;
@@ -67,31 +71,48 @@ st.markdown(
             max-width: 100% !important;
             width: 100% !important;
             height: 100% !important;
-            background-color: #262626 !important;
+            background: #262626 !important;
         }
-        /* Main vertical container – flex column */
+
+        /* The vertical block holding map and ticker – full height, no flex */
         div[data-testid="stVerticalBlock"] {
             height: 100% !important;
-            display: flex !important;
-            flex-direction: column !important;
+            display: block !important;
         }
-        /* Map container (folium iframe) – takes remaining space */
+
+        /* Map container – full viewport height */
         div[data-testid="stElementContainer"]:has(iframe.leaflet-container) {
-            flex: 1 1 auto !important;
-            min-height: 0 !important;
-            height: 100% !important;
+            height: 100vh !important;
+            width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
         }
+
+        /* The map iframe itself */
         iframe.leaflet-container {
             width: 100% !important;
             height: 100% !important;
             display: block !important;
         }
-        /* Ticker (custom component) – fixed height at bottom */
+
+        /* Ticker component – fixed overlay at bottom */
         div[data-testid="stCustomComponentV1"] {
-            flex: 0 0 140px !important;   /* fixed height */
+            position: fixed !important;
+            bottom: 0 !important;
+            left: 0 !important;
             width: 100% !important;
-            margin-top: 0 !important;
-            border-top: 1px solid rgba(255,255,255,.12);
+            height: 140px !important;          /* slim height */
+            z-index: 9999 !important;          /* above map */
+            pointer-events: auto !important;   /* allow clicks on links */
+            border: none !important;
+            box-shadow: 0 -5px 18px rgba(0,0,0,0.6) !important;
+        }
+
+        /* Ensure the ticker iframe itself fills the container */
+        div[data-testid="stCustomComponentV1"] iframe {
+            width: 100% !important;
+            height: 100% !important;
+            border: none !important;
         }
     </style>
     """),
@@ -712,19 +733,19 @@ if live_pin_items:
 
 
 # ================================================================
-# RENDER ORDER: MAP FIRST (top), TICKER LAST (bottom)
+# RENDER ORDER: MAP FIRST, TICKER OVERLAY AT BOTTOM
 # ================================================================
 
-# 1. Map render (takes most of the space)
+# 1. Map – full viewport
 st_folium(
     m,
     width="100%",
-    height=600,          # CSS will stretch it to fill
+    height=600,          # will be overridden by CSS to 100vh
     returned_objects=[],
     key="tactical_map_flush_v31"
 )
 
-# 2. Ticker component (bottom) – SLOWED DOWN
+# 2. Ticker – fixed overlay (appears on top of map at bottom)
 ticker_json = json.dumps(ticker_items, ensure_ascii=False)
 banner_json = json.dumps(banner_data)
 
@@ -740,7 +761,7 @@ components.html(
                 margin: 0; padding: 0;
                 width: 100%; height: 100%;
                 overflow: hidden;
-                background: #111827;
+                background: transparent;  /* let map show through */
                 font-family: Arial, sans-serif;
             }}
             #ticker {{
@@ -748,10 +769,11 @@ components.html(
                 width: 100%;
                 height: 100%;
                 overflow: hidden;
-                background: #111827;
+                background: rgba(17, 24, 39, 0.92);  /* semi-transparent dark */
                 color: white;
-                border-top: 1px solid rgba(255,255,255,.12);
-                box-shadow: 0 -5px 18px rgba(0,0,0,.35);
+                border-top: 1px solid rgba(255,255,255,.15);
+                box-shadow: 0 -5px 18px rgba(0,0,0,0.5);
+                backdrop-filter: blur(2px);
             }}
             #ticker-header {{
                 position: absolute;
@@ -932,6 +954,6 @@ components.html(
     </body>
     </html>
     """,
-    height=140,          # fixed height for ticker (slim)
+    height=140,
     scrolling=False
 )
