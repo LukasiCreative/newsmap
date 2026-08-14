@@ -38,17 +38,20 @@ def _flatten_html(markup):
 
 
 # ================================================================
-# GLOBAL CSS
+# GLOBAL CSS – now also forces full‑screen, no scroll
 # ================================================================
 
 st.markdown(
     _flatten_html("""
     <style>
         html, body {
-            background-color: #262626 !important;
             margin: 0 !important;
             padding: 0 !important;
+            height: 100% !important;
+            overflow: hidden !important;
+            background-color: #262626 !important;
         }
+        /* Hide Streamlit chrome */
         #MainMenu, footer, header, [data-testid="stHeader"],
         [data-testid="stToolbar"], [data-testid="stToolbarActions"],
         [data-testid="stDecoration"], [data-testid="stStatusWidget"],
@@ -56,19 +59,6 @@ st.markdown(
         div[class*="viewerBadge"], div[class*="stDeployButton"],
         div[class*="StatusWidget"], div[class*="Toolbar"], div[class*="Decoration"] {
             display: none !important;
-            visibility: hidden !important;
-            opacity: 0 !important;
-            width: 0 !important;
-            height: 0 !important;
-            min-height: 0 !important;
-            pointer-events: none !important;
-        }
-        button[title*="Streamlit"], button[aria-label*="Streamlit"],
-        a[title*="Streamlit"], a[aria-label*="Streamlit"] {
-            display: none !important;
-            visibility: hidden !important;
-            opacity: 0 !important;
-            pointer-events: none !important;
         }
         .stApp, .stAppViewContainer, .stAppViewBlockContainer,
         .main, .main .block-container {
@@ -76,39 +66,31 @@ st.markdown(
             margin: 0 !important;
             max-width: 100% !important;
             width: 100% !important;
+            height: 100% !important;
             background-color: #262626 !important;
         }
-        div[data-testid="stAppViewContainer"] {
-            padding-top: 0 !important;
-            margin-top: 0 !important;
-            background-color: #262626 !important;
+        /* Force the two main containers to fill the space */
+        div[data-testid="stVerticalBlock"] {
+            height: 100% !important;
+            display: flex !important;
+            flex-direction: column !important;
         }
-        div[data-testid="stAppViewContainer"] > .main {
-            padding-top: 0 !important;
-            margin-top: 0 !important;
-        }
-        div[data-testid="stMainBlockContainer"] {
-            padding: 0 !important;
-            margin: 0 !important;
-            background-color: #262626 !important;
-        }
-        .main .block-container {
-            padding-top: 0 !important;
-            margin-top: 0 !important;
-        }
-        div[data-testid="stVerticalBlock"],
-        div[data-testid="stElementContainer"],
-        div[data-testid="stVerticalBlockBorderWrapper"],
-        div[data-testid="stVerticalBlockInsideExecutionFlow"] {
-            padding: 0 !important;
-            margin: 0 !important;
-            gap: 0 !important;
-            width: 100% !important;
-            background-color: transparent !important;
-        }
+        /* The ticker container (custom component) */
         div[data-testid="stCustomComponentV1"] {
-            margin: 0 !important;
-            padding: 0 !important;
+            flex: 0 0 auto !important;   /* fixed height */
+            width: 100% !important;
+        }
+        /* The map container – takes remaining space */
+        div[data-testid="stElementContainer"]:has(iframe.leaflet-container) {
+            flex: 1 1 auto !important;
+            min-height: 0 !important;
+            height: 100% !important;
+        }
+        /* The folium iframe itself */
+        iframe.leaflet-container {
+            width: 100% !important;
+            height: 100% !important;
+            display: block !important;
         }
     </style>
     """),
@@ -117,7 +99,7 @@ st.markdown(
 
 
 # ================================================================
-# CONSTANTS
+# CONSTANTS (unchanged)
 # ================================================================
 
 WAR_KEYWORDS = [
@@ -162,7 +144,7 @@ REQUEST_HEADERS = {
 
 
 # ================================================================
-# BASIC HELPERS
+# BASIC HELPERS (unchanged)
 # ================================================================
 
 def clean_text(value):
@@ -204,7 +186,7 @@ def _xml_local_attr(node, child_name, attr_name):
 
 
 # ================================================================
-# FEED CONFIGURATION
+# FEED CONFIGURATION (unchanged)
 # ================================================================
 
 FEED_CONFIG = [
@@ -217,7 +199,7 @@ FEED_CONFIG = [
 
 
 # ================================================================
-# RSS / ATOM
+# RSS / ATOM (unchanged)
 # ================================================================
 
 @st.cache_data(ttl=120, show_spinner=False)
@@ -274,7 +256,7 @@ def fetch_rss(url, source_name, limit=8, only_relevant=False):
 
 
 # ================================================================
-# RELIEFWEB
+# RELIEFWEB (unchanged)
 # ================================================================
 
 @st.cache_data(ttl=120, show_spinner=False)
@@ -331,7 +313,7 @@ def fetch_reliefweb(limit=15):
 
 
 # ================================================================
-# USGS GEOJSON
+# USGS GEOJSON (unchanged)
 # ================================================================
 
 @st.cache_data(ttl=60, show_spinner=False)
@@ -379,7 +361,7 @@ def fetch_usgs_geojson(limit=20):
 
 
 # ================================================================
-# USGS ATOM
+# USGS ATOM (unchanged)
 # ================================================================
 
 @st.cache_data(ttl=60, show_spinner=False)
@@ -389,7 +371,7 @@ def fetch_usgs_atom(limit=12):
 
 
 # ================================================================
-# LIVE MEDIA FEEDS
+# LIVE MEDIA FEEDS (unchanged)
 # ================================================================
 
 def fetch_live_media():
@@ -415,7 +397,7 @@ def fetch_live_media():
 
 
 # ================================================================
-# FETCH ALL DATA
+# FETCH ALL DATA (unchanged)
 # ================================================================
 
 feed_articles = []
@@ -428,7 +410,7 @@ feed_articles.extend(fetch_live_media())
 
 
 # ================================================================
-# GLOBAL DE-DUPLICATION
+# GLOBAL DE-DUPLICATION (unchanged)
 # ================================================================
 
 seen = set()
@@ -442,7 +424,7 @@ for article in feed_articles:
 
 
 # ================================================================
-# ARTICLE VIEW
+# ARTICLE VIEW (unchanged)
 # ================================================================
 
 requested_article = st.query_params.get("article")
@@ -565,7 +547,7 @@ if requested_article is not None:
 
 
 # ================================================================
-# RED-PIN TICKER DATA
+# TICKER DATA (unchanged)
 # ================================================================
 
 ticker_items = []
@@ -601,7 +583,7 @@ if BANNER_PATH.exists():
 
 
 # ================================================================
-# MAP
+# MAP (unchanged)
 # ================================================================
 
 live_pin_items = []
@@ -729,22 +711,10 @@ if live_pin_items:
 
 
 # ================================================================
-# MAP RENDER – NOW FIRST
+# RENDER ORDER: TICKER ON TOP, MAP BELOW
 # ================================================================
 
-st_folium(
-    m,
-    width="100%",
-    height=680,
-    returned_objects=[],
-    key="tactical_map_flush_v31"
-)
-
-
-# ================================================================
-# TICKER COMPONENT – NOW AT THE BOTTOM
-# ================================================================
-
+# 1. TICKER COMPONENT (now first)
 ticker_json = json.dumps(ticker_items, ensure_ascii=False)
 banner_json = json.dumps(banner_data)
 
@@ -765,24 +735,25 @@ components.html(
             }}
             #ticker {{
                 position: relative;
-                width: 100%; height: 100%;
+                width: 100%;
+                height: 100%;
                 overflow: hidden;
                 background: #111827;
                 color: white;
-                border-top: 1px solid rgba(255,255,255,.12);
-                box-shadow: 0 -5px 18px rgba(0,0,0,.35);
+                border-bottom: 1px solid rgba(255,255,255,.12);  /* separator at bottom */
+                box-shadow: 0 5px 18px rgba(0,0,0,.35);
             }}
             #ticker-header {{
                 position: absolute;
                 left: 0; right: 0; top: 0;
-                height: 34px;
+                height: 30px;
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
-                padding: 0 20px;
-                font-size: 11px;
+                padding: 0 14px;
+                font-size: 10px;
                 font-weight: 900;
-                letter-spacing: .8px;
+                letter-spacing: .6px;
                 text-transform: uppercase;
                 color: #e5e7eb;
                 z-index: 10;
@@ -790,8 +761,8 @@ components.html(
             #ticker-content {{
                 position: absolute;
                 left: 0; right: 0;
-                top: 34px; bottom: 0;
-                padding: 12px 22px;
+                top: 30px; bottom: 0;
+                padding: 8px 16px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
@@ -803,26 +774,26 @@ components.html(
             .headline-top {{
                 display: flex;
                 align-items: center;
-                gap: 10px;
-                margin-bottom: 6px;
+                gap: 8px;
+                margin-bottom: 4px;
             }}
             .source {{
                 display: inline-block;
-                padding: 4px 8px;
-                border-radius: 4px;
+                padding: 2px 6px;
+                border-radius: 3px;
                 background: #3b70b4;
                 color: white;
-                font-size: 9px;
+                font-size: 8px;
                 font-weight: 900;
-                letter-spacing: .5px;
+                letter-spacing: .4px;
                 text-transform: uppercase;
                 white-space: nowrap;
             }}
             .location {{
                 color: #ff8b8b;
-                font-size: 9px;
+                font-size: 8px;
                 font-weight: 800;
-                letter-spacing: .5px;
+                letter-spacing: .4px;
                 text-transform: uppercase;
                 overflow: hidden;
                 text-overflow: ellipsis;
@@ -830,9 +801,9 @@ components.html(
             }}
             .title {{
                 color: white;
-                font-size: 15px;
+                font-size: 13px;
                 font-weight: 800;
-                line-height: 1.35;
+                line-height: 1.3;
             }}
             .title a {{
                 color: white;
@@ -857,9 +828,10 @@ components.html(
             .banner-fallback {{
                 color: #202938;
                 font-family: Georgia, serif;
-                font-size: 26px;
+                font-size: 20px;
                 font-weight: 700;
                 text-align: center;
+                padding: 10px;
             }}
         </style>
     </head>
@@ -950,6 +922,15 @@ components.html(
     </body>
     </html>
     """,
-    height=190,
+    height=150,          # fixed height for ticker
     scrolling=False
+)
+
+# 2. MAP RENDER (now below, taking remaining space)
+st_folium(
+    m,
+    width="100%",
+    height=600,          # will be overridden by CSS flex to fill rest
+    returned_objects=[],
+    key="tactical_map_flush_v31"
 )
