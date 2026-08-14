@@ -31,12 +31,12 @@ def _flatten_html(markup):
     return re.sub(r"(?m)^[ \t]+", "", markup)
 
 # ================================================================
-# CRITICAL CSS – map fullscreen, ticker fixed overlay, matching background
+# CRITICAL CSS – map fullscreen, ticker overlay, ZERO WHITE FLASH
 # ================================================================
 st.markdown(
     _flatten_html("""
     <style>
-        /* Lock dark color scheme and exact matching map background */
+        /* Force dark canvas at all rendering levels */
         :root {
             color-scheme: dark !important;
             background-color: #262626 !important;
@@ -52,7 +52,7 @@ st.markdown(
             display: none !important;
         }
 
-        /* Make all containers strictly #262626 to eliminate any white paint */
+        /* Enforce #262626 on every root & parent container */
         html, body, #root, .stApp, .stAppViewContainer, .stAppViewBlockContainer,
         .main, .main .block-container, iframe {
             margin: 0 !important;
@@ -67,7 +67,7 @@ st.markdown(
             filter: none !important;
         }
 
-        /* The map container fills viewport */
+        /* The map container fills viewport with matching #262626 */
         div[data-testid="stElementContainer"]:has(iframe.leaflet-container) {
             height: 100vh !important;
             height: 100dvh !important;
@@ -203,24 +203,6 @@ st.markdown(
     """),
     unsafe_allow_html=True
 )
-
-# ================================================================
-# LOADING PLACEHOLDER
-# ================================================================
-placeholder = st.empty()
-with placeholder:
-    st.markdown(
-        """
-        <div style="display:flex; justify-content:center; align-items:flex-start; padding-top:22vh; height:100vh; background:#262626; box-sizing:border-box;">
-            <div style="text-align:center; color:white; font-family:sans-serif;">
-                <div style="font-size:52px; margin-bottom:14px;">🛰️</div>
-                <h1 style="margin:0 0 8px 0; font-size:26px; font-weight:800; letter-spacing:0.5px; color:#ffffff;">Loading Crisis Data...</h1>
-                <p style="margin:0; color:#9ca3af; font-size:14px;">Please wait while we fetch live intelligence.</p>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
 
 # ================================================================
 # CONSTANTS
@@ -510,11 +492,6 @@ def fetch_all_crisis_data():
     return mapped
 
 mapped_alerts = fetch_all_crisis_data()
-
-# ================================================================
-# REMOVE LOADING PLACEHOLDER
-# ================================================================
-placeholder.empty()
 
 # ================================================================
 # CHECK BANNER PARAMETER
@@ -841,7 +818,7 @@ if banner_idx is not None and 0 <= banner_idx < len(mapped_alerts):
 
 is_article_str = "true" if requested_article is not None else "false"
 
-# Build driver component with in-memory zero-flash translation
+# Build driver component with zero-flash in-place client translation
 components.html(
     """
     <!DOCTYPE html>
@@ -859,10 +836,13 @@ components.html(
             const doc = frame ? frame.ownerDocument : document;
             const win = doc.defaultView;
 
-            // Lock background strictly to #262626 to kill white flash
+            // Lock background strictly to #262626 at every level
             try {
                 doc.documentElement.style.backgroundColor = "#262626";
                 doc.body.style.backgroundColor = "#262626";
+                if (frame) {
+                    frame.style.backgroundColor = "#262626";
+                }
             } catch(e) {}
 
             function appUrl(query) {
@@ -992,7 +972,7 @@ components.html(
                         const newLangObj = languages.find(function(l) { return l.code === activeLang; }) || languages[0];
                         container.querySelector('#current-flag').textContent = newLangObj.flag;
                         
-                        // Update active views in place without page reloads
+                        // Seamless in-place update with zero page reload
                         if (typeof displayCurrent === 'function') {
                             displayCurrent();
                         }
