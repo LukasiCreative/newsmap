@@ -31,29 +31,17 @@ def _flatten_html(markup):
     return re.sub(r"(?m)^[ \t]+", "", markup)
 
 # ================================================================
-# LOADING PLACEHOLDER (Centered towards the upper part of the screen)
-# ================================================================
-placeholder = st.empty()
-with placeholder:
-    st.markdown(
-        """
-        <div style="display:flex; justify-content:center; align-items:flex-start; padding-top:22vh; height:100vh; background:#262626; box-sizing:border-box;">
-            <div style="text-align:center; color:white; font-family:sans-serif;">
-                <div style="font-size:52px; margin-bottom:14px;">🛰️</div>
-                <h1 style="margin:0 0 8px 0; font-size:26px; font-weight:800; letter-spacing:0.5px;">Loading Crisis Data...</h1>
-                <p style="margin:0; color:#9ca3af; font-size:14px;">Please wait while we fetch live intelligence.</p>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-# ================================================================
-# CRITICAL CSS – map fullscreen, ticker fixed overlay, invisible translate
+# CRITICAL CSS – map fullscreen, dark background locked, zero white flash
 # ================================================================
 st.markdown(
     _flatten_html("""
     <style>
+        /* Force dark color scheme at browser rendering level */
+        :root {
+            color-scheme: dark !important;
+            background-color: #111827 !important;
+        }
+
         /* Hide all Streamlit chrome */
         #MainMenu, footer, header, [data-testid="stHeader"],
         [data-testid="stToolbar"], [data-testid="stToolbarActions"],
@@ -64,7 +52,7 @@ st.markdown(
             display: none !important;
         }
 
-        /* 100% INVISIBLE TRANSLATE: completely eliminate Google Translate banners, bars, tooltips & popups */
+        /* 100% INVISIBLE TRANSLATE & ZERO WHITE FLASH */
         .goog-te-banner-frame,
         .goog-te-banner-frame.skiptranslate,
         iframe.goog-te-banner-frame,
@@ -82,10 +70,14 @@ st.markdown(
             border: none !important;
             box-shadow: none !important;
         }
+        
         body {
             top: 0px !important;
             position: static !important;
+            background: #111827 !important;
+            background-color: #111827 !important;
         }
+
         #google_translate_element {
             display: none !important;
             visibility: hidden !important;
@@ -93,20 +85,22 @@ st.markdown(
             width: 0 !important;
             overflow: hidden !important;
         }
+
         .skiptranslate:not(#crisis-lang-picker):not(#crisis-lang-picker *) {
             display: none !important;
         }
 
-        /* Make the whole app container fill the viewport */
-        html, body, .stApp, .stAppViewContainer, .stAppViewBlockContainer,
-        .main, .main .block-container {
+        /* Make all containers strictly dark to avoid white paint flash */
+        html, body, #root, .stApp, .stAppViewContainer, .stAppViewBlockContainer,
+        .main, .main .block-container, iframe {
             margin: 0 !important;
             padding: 0 !important;
             width: 100% !important;
             height: 100vh !important;
             height: 100dvh !important;
             overflow: hidden !important;
-            background: #262626 !important;
+            background: #111827 !important;
+            background-color: #111827 !important;
             transform: none !important;
             filter: none !important;
         }
@@ -118,14 +112,16 @@ st.markdown(
             width: 100% !important;
             padding: 0 !important;
             margin: 0 !important;
+            background: #262626 !important;
         }
         iframe.leaflet-container {
             width: 100% !important;
             height: 100% !important;
             display: block !important;
+            background: #262626 !important;
         }
 
-        /* Ticker layer: pinned to the bottom edge of the app window, above the map */
+        /* Ticker layer: pinned to bottom edge */
         #news-ticker-overlay {
             position: fixed !important;
             left: 0 !important;
@@ -229,13 +225,13 @@ st.markdown(
             padding: 8px;
         }
 
-        /* The ticker driver component is headless */
+        /* Headless ticker component */
         div[data-testid="stCustomComponentV1"]:not(:has(iframe.leaflet-container)),
         div[data-testid="stElementContainer"]:has(div[data-testid="stCustomComponentV1"]:not(:has(iframe.leaflet-container))) {
             display: none !important;
         }
 
-        /* Map component fills the window */
+        /* Map component fills window */
         div[data-testid="stCustomComponentV1"]:has(iframe.leaflet-container) {
             height: 100vh !important;
             height: 100dvh !important;
@@ -245,6 +241,24 @@ st.markdown(
     """),
     unsafe_allow_html=True
 )
+
+# ================================================================
+# LOADING PLACEHOLDER
+# ================================================================
+placeholder = st.empty()
+with placeholder:
+    st.markdown(
+        """
+        <div style="display:flex; justify-content:center; align-items:flex-start; padding-top:22vh; height:100vh; background:#111827; box-sizing:border-box;">
+            <div style="text-align:center; color:white; font-family:sans-serif;">
+                <div style="font-size:52px; margin-bottom:14px;">🛰️</div>
+                <h1 style="margin:0 0 8px 0; font-size:26px; font-weight:800; letter-spacing:0.5px; color:#ffffff;">Loading Crisis Data...</h1>
+                <p style="margin:0; color:#9ca3af; font-size:14px;">Please wait while we fetch live intelligence.</p>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 # ================================================================
 # CONSTANTS
@@ -865,18 +879,30 @@ if banner_idx is not None and 0 <= banner_idx < len(mapped_alerts):
 
 is_article_str = "true" if requested_article is not None else "false"
 
-# Build driver component without problematic f-string braces
+# Build driver component with zero-flash translation
 components.html(
     """
     <!DOCTYPE html>
     <html>
-    <head><meta charset="UTF-8"></head>
-    <body>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="color-scheme" content="dark">
+        <style>
+            html, body { background: #111827 !important; color-scheme: dark !important; }
+        </style>
+    </head>
+    <body style="background:#111827;">
         <div id="google_translate_element" style="display:none;"></div>
         <script>
             const frame = window.frameElement;
             const doc = frame ? frame.ownerDocument : document;
             const win = doc.defaultView;
+
+            // Enforce dark background on the top-level window to kill white flash
+            try {
+                doc.documentElement.style.backgroundColor = "#111827";
+                doc.body.style.backgroundColor = "#111827";
+            } catch(e) {}
 
             function appUrl(query) {
                 return win.location.origin + win.location.pathname + query;
@@ -913,6 +939,8 @@ components.html(
                     select.value = langCode;
                     select.dispatchEvent(new Event('change'));
                 } else {
+                    // Smooth reload without white flash
+                    try { doc.documentElement.style.backgroundColor = '#111827'; } catch(e){}
                     win.location.reload();
                 }
             }
