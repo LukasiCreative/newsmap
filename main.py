@@ -34,10 +34,6 @@ st.set_page_config(
 # ================================================================
 
 def _flatten_html(markup):
-    """
-    Prevent Streamlit from interpreting indented HTML as
-    Markdown code blocks.
-    """
     return re.sub(r"(?m)^[ \t]+", "", markup)
 
 
@@ -48,34 +44,17 @@ def _flatten_html(markup):
 st.markdown(
     _flatten_html("""
     <style>
-
-        html,
-        body {
+        html, body {
             background-color: #262626 !important;
             margin: 0 !important;
             padding: 0 !important;
         }
-
-
-        /* ========================================================
-           STREAMLIT CHROME
-           ======================================================== */
-
-        #MainMenu,
-        footer,
-        header,
-        [data-testid="stHeader"],
-        [data-testid="stToolbar"],
-        [data-testid="stToolbarActions"],
-        [data-testid="stDecoration"],
-        [data-testid="stStatusWidget"],
-        [data-testid="stAppDeployButton"],
-        [data-testid="stHeaderActionElements"],
-        div[class*="viewerBadge"],
-        div[class*="stDeployButton"],
-        div[class*="StatusWidget"],
-        div[class*="Toolbar"],
-        div[class*="Decoration"] {
+        #MainMenu, footer, header, [data-testid="stHeader"],
+        [data-testid="stToolbar"], [data-testid="stToolbarActions"],
+        [data-testid="stDecoration"], [data-testid="stStatusWidget"],
+        [data-testid="stAppDeployButton"], [data-testid="stHeaderActionElements"],
+        div[class*="viewerBadge"], div[class*="stDeployButton"],
+        div[class*="StatusWidget"], div[class*="Toolbar"], div[class*="Decoration"] {
             display: none !important;
             visibility: hidden !important;
             opacity: 0 !important;
@@ -84,62 +63,39 @@ st.markdown(
             min-height: 0 !important;
             pointer-events: none !important;
         }
-
-
-        button[title*="Streamlit"],
-        button[aria-label*="Streamlit"],
-        a[title*="Streamlit"],
-        a[aria-label*="Streamlit"] {
+        button[title*="Streamlit"], button[aria-label*="Streamlit"],
+        a[title*="Streamlit"], a[aria-label*="Streamlit"] {
             display: none !important;
             visibility: hidden !important;
             opacity: 0 !important;
             pointer-events: none !important;
         }
-
-
-        /* ========================================================
-           APP CONTAINER
-           ======================================================== */
-
-        .stApp,
-        .stAppViewContainer,
-        .stAppViewBlockContainer,
-        .main,
-        .main .block-container {
+        .stApp, .stAppViewContainer, .stAppViewBlockContainer,
+        .main, .main .block-container {
             padding: 0 !important;
             margin: 0 !important;
             max-width: 100% !important;
             width: 100% !important;
             background-color: #262626 !important;
         }
-
-
         div[data-testid="stAppViewContainer"] {
             padding-top: 0 !important;
             margin-top: 0 !important;
             background-color: #262626 !important;
         }
-
-
         div[data-testid="stAppViewContainer"] > .main {
             padding-top: 0 !important;
             margin-top: 0 !important;
         }
-
-
         div[data-testid="stMainBlockContainer"] {
             padding: 0 !important;
             margin: 0 !important;
             background-color: #262626 !important;
         }
-
-
         .main .block-container {
             padding-top: 0 !important;
             margin-top: 0 !important;
         }
-
-
         div[data-testid="stVerticalBlock"],
         div[data-testid="stElementContainer"],
         div[data-testid="stVerticalBlockBorderWrapper"],
@@ -150,21 +106,10 @@ st.markdown(
             width: 100% !important;
             background-color: transparent !important;
         }
-
-
-        /* ========================================================
-           IMPORTANT:
-           Do NOT globally style every iframe.
-           
-           The ticker is also an iframe because it is a Streamlit
-           component.
-           ======================================================== */
-
         div[data-testid="stCustomComponentV1"] {
             margin: 0 !important;
             padding: 0 !important;
         }
-
     </style>
     """),
     unsafe_allow_html=True
@@ -176,35 +121,12 @@ st.markdown(
 # ================================================================
 
 WAR_KEYWORDS = [
-    "war",
-    "bomb",
-    "explosion",
-    "strike",
-    "missile",
-    "shelling",
-    "attack",
-    "military",
-    "air strike",
-    "invasion",
-    "blast",
-    "combat",
-    "troop",
-    "forces",
-    "clash",
-    "conflict",
-    "casualty",
-    "offensive",
-    "army",
-    "gaza",
-    "ukraine",
-    "israel",
-    "lebanon",
-    "syria",
-    "drone",
-    "hezbollah",
-    "houthi"
+    "war", "bomb", "explosion", "strike", "missile", "shelling",
+    "attack", "military", "air strike", "invasion", "blast", "combat",
+    "troop", "forces", "clash", "conflict", "casualty", "offensive",
+    "army", "gaza", "ukraine", "israel", "lebanon", "syria", "drone",
+    "hezbollah", "houthi"
 ]
-
 
 GEO_DATABASE = {
     "Gaza": [31.50, 34.46],
@@ -233,19 +155,9 @@ GEO_DATABASE = {
     "Turkey": [38.96, 35.24]
 }
 
-
 REQUEST_HEADERS = {
-    "User-Agent": (
-        "CrisisCommand/2.0 "
-        "(+https://gdacs.org; disaster-feed-client)"
-    ),
-    "Accept": (
-        "application/json, "
-        "application/xml, "
-        "text/xml, "
-        "application/atom+xml, "
-        "*/*"
-    ),
+    "User-Agent": "CrisisCommand/2.0 (+https://gdacs.org; disaster-feed-client)",
+    "Accept": "application/json, application/xml, text/xml, application/atom+xml, */*",
 }
 
 
@@ -258,36 +170,16 @@ def clean_text(value):
     value = re.sub(r"<[^>]+>", " ", value)
     return re.sub(r"\s+", " ", value).strip()
 
-
 def find_location(title, summary):
     text = f"{title} {summary}".lower()
-
-    for name in sorted(
-        GEO_DATABASE,
-        key=len,
-        reverse=True
-    ):
+    for name in sorted(GEO_DATABASE, key=len, reverse=True):
         if name.lower() in text:
             return name, GEO_DATABASE[name]
-
     return "Global", [20.0, 0.0]
 
-
 def relevant(title, summary):
-    """
-    Match complete words only.
-    """
-
     text = f"{title} {summary}".lower()
-
-    return any(
-        re.search(
-            rf"\b{re.escape(keyword)}\b",
-            text
-        )
-        for keyword in WAR_KEYWORDS
-    )
-
+    return any(re.search(rf"\b{re.escape(keyword)}\b", text) for keyword in WAR_KEYWORDS)
 
 def _safe_float(value):
     try:
@@ -295,50 +187,19 @@ def _safe_float(value):
     except (TypeError, ValueError):
         return None
 
-
 def _xml_local_text(node, *names):
-    wanted = {
-        name.lower()
-        for name in names
-    }
-
+    wanted = {name.lower() for name in names}
     for child in list(node):
-
-        local = child.tag.rsplit(
-            "}",
-            1
-        )[-1].lower()
-
-        if (
-            local in wanted
-            and child.text
-        ):
-            return clean_text(
-                child.text
-            )
-
+        local = child.tag.rsplit("}", 1)[-1].lower()
+        if local in wanted and child.text:
+            return clean_text(child.text)
     return ""
 
-
-def _xml_local_attr(
-    node,
-    child_name,
-    attr_name
-):
+def _xml_local_attr(node, child_name, attr_name):
     for child in list(node):
-
-        local = child.tag.rsplit(
-            "}",
-            1
-        )[-1].lower()
-
+        local = child.tag.rsplit("}", 1)[-1].lower()
         if local == child_name.lower():
-
-            return child.attrib.get(
-                attr_name,
-                ""
-            )
-
+            return child.attrib.get(attr_name, "")
     return ""
 
 
@@ -347,62 +208,11 @@ def _xml_local_attr(
 # ================================================================
 
 FEED_CONFIG = [
-    {
-        "source": "GDACS",
-        "format": "XML/RSS",
-        "feed_url": (
-            "https://www.gdacs.org/"
-            "contentdata/xml/rss.xml"
-        ),
-        "site_url": "https://gdacs.org",
-        "parser": "gdacs",
-    },
-
-    {
-        "source": "GDACS (NEW)",
-        "format": "XML/RSS",
-        "feed_url": (
-            "https://new.gdacs.org/"
-            "xml/rss.xml"
-        ),
-        "site_url": "https://new.gdacs.org",
-        "parser": "gdacs",
-    },
-
-    {
-        "source": "RELIEFWEB",
-        "format": "JSON",
-        "feed_url": (
-            "https://api.reliefweb.int/"
-            "v2/reports"
-        ),
-        "site_url": "https://reliefweb.int",
-        "parser": "reliefweb",
-    },
-
-    {
-        "source": "USGS",
-        "format": "GeoJSON",
-        "feed_url": (
-            "https://earthquake.usgs.gov/"
-            "earthquakes/feed/v1.0/"
-            "summary/all_day.geojson"
-        ),
-        "site_url": "https://usgs.gov",
-        "parser": "usgs_geojson",
-    },
-
-    {
-        "source": "USGS (ATOM)",
-        "format": "ATOM/XML",
-        "feed_url": (
-            "https://earthquake.usgs.gov/"
-            "earthquakes/feed/v1.0/"
-            "summary/all_day.atom"
-        ),
-        "site_url": "https://usgs.gov",
-        "parser": "usgs_atom",
-    },
+    {"source": "GDACS", "format": "XML/RSS", "feed_url": "https://www.gdacs.org/contentdata/xml/rss.xml", "site_url": "https://gdacs.org", "parser": "gdacs"},
+    {"source": "GDACS (NEW)", "format": "XML/RSS", "feed_url": "https://new.gdacs.org/xml/rss.xml", "site_url": "https://new.gdacs.org", "parser": "gdacs"},
+    {"source": "RELIEFWEB", "format": "JSON", "feed_url": "https://api.reliefweb.int/v2/reports", "site_url": "https://reliefweb.int", "parser": "reliefweb"},
+    {"source": "USGS", "format": "GeoJSON", "feed_url": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson", "site_url": "https://usgs.gov", "parser": "usgs_geojson"},
+    {"source": "USGS (ATOM)", "format": "ATOM/XML", "feed_url": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.atom", "site_url": "https://usgs.gov", "parser": "usgs_atom"},
 ]
 
 
@@ -410,197 +220,56 @@ FEED_CONFIG = [
 # RSS / ATOM
 # ================================================================
 
-@st.cache_data(
-    ttl=120,
-    show_spinner=False
-)
-def fetch_rss(
-    url,
-    source_name,
-    limit=8,
-    only_relevant=False
-):
-
+@st.cache_data(ttl=120, show_spinner=False)
+def fetch_rss(url, source_name, limit=8, only_relevant=False):
     articles = []
-
     try:
-
-        response = requests.get(
-            url,
-            headers=REQUEST_HEADERS,
-            timeout=15
-        )
-
+        response = requests.get(url, headers=REQUEST_HEADERS, timeout=15)
         response.raise_for_status()
-
-        root = ET.fromstring(
-            response.content
-        )
-
-        items = list(
-            root.findall(".//item")
-        )
-
+        root = ET.fromstring(response.content)
+        items = list(root.findall(".//item"))
         if not items:
-
-            items = [
-                node
-                for node in root.iter()
-                if (
-                    node.tag.rsplit(
-                        "}",
-                        1
-                    )[-1].lower()
-                    == "entry"
-                )
-            ]
-
+            items = [node for node in root.iter() if node.tag.rsplit("}", 1)[-1].lower() == "entry"]
         for item in items:
-
-            title = _xml_local_text(
-                item,
-                "title"
-            )
-
-            description = _xml_local_text(
-                item,
-                "description",
-                "summary",
-                "content"
-            )
-
-            link = _xml_local_text(
-                item,
-                "link"
-            )
-
+            title = _xml_local_text(item, "title")
+            description = _xml_local_text(item, "description", "summary", "content")
+            link = _xml_local_text(item, "link")
             if not link:
-
-                link = _xml_local_attr(
-                    item,
-                    "link",
-                    "href"
-                )
-
+                link = _xml_local_attr(item, "link", "href")
             if not title or not link:
                 continue
-
-            if (
-                only_relevant
-                and
-                not relevant(
-                    title,
-                    description
-                )
-            ):
+            if only_relevant and not relevant(title, description):
                 continue
-
-            # ----------------------------------------------------
-            # LOCATION
-            # ----------------------------------------------------
-
-            lat = None
-            lon = None
-
+            lat = lon = None
             for node in item.iter():
-
-                local = node.tag.rsplit(
-                    "}",
-                    1
-                )[-1].lower()
-
-                if (
-                    local in {
-                        "point",
-                        "where"
-                    }
-                    and node.text
-                ):
-
-                    parts = (
-                        node.text
-                        .replace(",", " ")
-                        .split()
-                    )
-
+                local = node.tag.rsplit("}", 1)[-1].lower()
+                if local in {"point", "where"} and node.text:
+                    parts = node.text.replace(",", " ").split()
                     if len(parts) >= 2:
-
-                        lat = _safe_float(
-                            parts[0]
-                        )
-
-                        lon = _safe_float(
-                            parts[1]
-                        )
-
+                        lat = _safe_float(parts[0])
+                        lon = _safe_float(parts[1])
                         break
-
-                if local in {
-                    "lat",
-                    "latitude"
-                }:
-
-                    lat = _safe_float(
-                        node.text
-                    )
-
-                if local in {
-                    "long",
-                    "lon",
-                    "longitude"
-                }:
-
-                    lon = _safe_float(
-                        node.text
-                    )
-
-            location_name, coords = (
-                find_location(
-                    title,
-                    description
-                )
-            )
-
-            if (
-                lat is None
-                or
-                lon is None
-            ):
-
+                if local in {"lat", "latitude"}:
+                    lat = _safe_float(node.text)
+                if local in {"long", "lon", "longitude"}:
+                    lon = _safe_float(node.text)
+            location_name, coords = find_location(title, description)
+            if lat is None or lon is None:
                 lat, lon = coords
-
-            articles.append(
-                {
-                    "title": title,
-                    "link": link,
-                    "location_name": (
-                        location_name
-                    ),
-                    "lat": float(lat),
-                    "lon": float(lon),
-                    "source": source_name,
-                    "summary": (
-                        description[:190]
-                        if description
-                        else
-                        "Open original source for details."
-                    ),
-
-                    # GDACS is blue.
-                    "is_un_data": (
-                        source_name
-                        .upper()
-                        .startswith("GDACS")
-                    ),
-                }
-            )
-
+            articles.append({
+                "title": title,
+                "link": link,
+                "location_name": location_name,
+                "lat": float(lat),
+                "lon": float(lon),
+                "source": source_name,
+                "summary": description[:190] if description else "Open original source for details.",
+                "is_un_data": source_name.upper().startswith("GDACS"),
+            })
             if len(articles) >= limit:
                 break
-
     except Exception:
         pass
-
     return articles
 
 
@@ -608,241 +277,56 @@ def fetch_rss(
 # RELIEFWEB
 # ================================================================
 
-@st.cache_data(
-    ttl=120,
-    show_spinner=False
-)
-def fetch_reliefweb(
-    limit=15
-):
-
+@st.cache_data(ttl=120, show_spinner=False)
+def fetch_reliefweb(limit=15):
     articles = []
-
-    appname = os.getenv(
-        "RELIEFWEB_APPNAME",
-        "crisis-command-streamlit"
-    )
-
-    url = (
-        "https://api.reliefweb.int/"
-        "v2/reports"
-    )
-
+    appname = os.getenv("RELIEFWEB_APPNAME", "crisis-command-streamlit")
+    url = "https://api.reliefweb.int/v2/reports"
     payload = {
         "limit": limit,
-
-        "sort": [
-            "date:desc"
-        ],
-
+        "sort": ["date:desc"],
         "preset": "latest",
-
-        "query": {
-            "value": (
-                "war OR conflict OR attack "
-                "OR explosion OR military "
-                "OR missile"
-            )
-        },
-
-        "fields": {
-            "include": [
-                "title",
-                "url",
-                "primary_country",
-                "source",
-                "date"
-            ]
-        }
+        "query": {"value": "war OR conflict OR attack OR explosion OR military OR missile"},
+        "fields": {"include": ["title", "url", "primary_country", "source", "date"]}
     }
-
     try:
-
-        response = requests.post(
-            url,
-            params={
-                "appname": appname
-            },
-            json=payload,
-            headers={
-                **REQUEST_HEADERS,
-                "Content-Type":
-                    "application/json"
-            },
-            timeout=15
-        )
-
+        response = requests.post(url, params={"appname": appname}, json=payload,
+                                 headers={**REQUEST_HEADERS, "Content-Type": "application/json"}, timeout=15)
         response.raise_for_status()
-
-        for item in response.json().get(
-            "data",
-            []
-        ):
-
-            fields = item.get(
-                "fields",
-                {}
-            )
-
-            title = clean_text(
-                fields.get(
-                    "title",
-                    ""
-                )
-            )
-
+        for item in response.json().get("data", []):
+            fields = item.get("fields", {})
+            title = clean_text(fields.get("title", ""))
             if not title:
                 continue
-
-            countries = (
-                fields.get(
-                    "primary_country"
-                )
-                or {}
-            )
-
-            country_name = (
-                countries.get("name")
-                if isinstance(
-                    countries,
-                    dict
-                )
-                else None
-            )
-
-            location = (
-                countries.get("location")
-                if isinstance(
-                    countries,
-                    dict
-                )
-                else {}
-            )
-
-            lat = (
-                _safe_float(
-                    location.get("lat")
-                )
-                if isinstance(
-                    location,
-                    dict
-                )
-                else None
-            )
-
-            lon = (
-                _safe_float(
-                    location.get("lon")
-                )
-                if isinstance(
-                    location,
-                    dict
-                )
-                else None
-            )
-
-            if (
-                lat is None
-                or
-                lon is None
-            ):
-
-                if (
-                    country_name
-                    in GEO_DATABASE
-                ):
-
-                    lat, lon = (
-                        GEO_DATABASE[
-                            country_name
-                        ]
-                    )
-
+            countries = fields.get("primary_country") or {}
+            country_name = countries.get("name") if isinstance(countries, dict) else None
+            location = countries.get("location") if isinstance(countries, dict) else {}
+            lat = _safe_float(location.get("lat")) if isinstance(location, dict) else None
+            lon = _safe_float(location.get("lon")) if isinstance(location, dict) else None
+            if lat is None or lon is None:
+                if country_name in GEO_DATABASE:
+                    lat, lon = GEO_DATABASE[country_name]
                 else:
-
-                    lat, lon = (
-                        20.0,
-                        0.0
-                    )
-
-            source = fields.get(
-                "source"
-            ) or {}
-
-            source_name = (
-                source.get(
-                    "shortname",
-                    "RELIEFWEB"
-                )
-                if isinstance(
-                    source,
-                    dict
-                )
-                else
-                "RELIEFWEB"
-            )
-
-            date_value = fields.get(
-                "date"
-            ) or {}
-
-            date_text = (
-                date_value.get(
-                    "created"
-                )
-                if isinstance(
-                    date_value,
-                    dict
-                )
-                else
-                str(
-                    date_value or ""
-                )
-            )
-
-            summary = (
-                "Live ReliefWeb "
-                "operational intelligence update"
-            )
-
+                    lat, lon = 20.0, 0.0
+            source = fields.get("source") or {}
+            source_name = source.get("shortname", "RELIEFWEB") if isinstance(source, dict) else "RELIEFWEB"
+            date_value = fields.get("date") or {}
+            date_text = date_value.get("created") if isinstance(date_value, dict) else str(date_value or "")
+            summary = "Live ReliefWeb operational intelligence update"
             if date_text:
-                summary += (
-                    f" — {date_text[:19]}"
-                )
-
-            articles.append(
-                {
-                    "title": title,
-
-                    "link": (
-                        fields.get("url")
-                        or
-                        "https://reliefweb.int"
-                    ),
-
-                    "location_name": (
-                        country_name
-                        or
-                        "Global"
-                    ),
-
-                    "lat": float(lat),
-                    "lon": float(lon),
-
-                    "source": str(
-                        source_name
-                    ).upper(),
-
-                    "summary": summary,
-
-                    # ReliefWeb is blue.
-                    "is_un_data": True,
-                }
-            )
-
+                summary += f" — {date_text[:19]}"
+            articles.append({
+                "title": title,
+                "link": fields.get("url") or "https://reliefweb.int",
+                "location_name": country_name or "Global",
+                "lat": float(lat),
+                "lon": float(lon),
+                "source": str(source_name).upper(),
+                "summary": summary,
+                "is_un_data": True,
+            })
     except Exception:
         pass
-
     return articles
 
 
@@ -850,140 +334,47 @@ def fetch_reliefweb(
 # USGS GEOJSON
 # ================================================================
 
-@st.cache_data(
-    ttl=60,
-    show_spinner=False
-)
-def fetch_usgs_geojson(
-    limit=20
-):
-
+@st.cache_data(ttl=60, show_spinner=False)
+def fetch_usgs_geojson(limit=20):
     articles = []
-
-    url = (
-        "https://earthquake.usgs.gov/"
-        "earthquakes/feed/v1.0/"
-        "summary/all_day.geojson"
-    )
-
+    url = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson"
     try:
-
-        response = requests.get(
-            url,
-            headers=REQUEST_HEADERS,
-            timeout=15
-        )
-
+        response = requests.get(url, headers=REQUEST_HEADERS, timeout=15)
         response.raise_for_status()
-
         data = response.json()
-
-        for feature in data.get(
-            "features",
-            []
-        )[:limit]:
-
-            props = (
-                feature.get("properties")
-                or {}
-            )
-
-            geometry = (
-                feature.get("geometry")
-                or {}
-            )
-
-            coords = (
-                geometry.get(
-                    "coordinates"
-                )
-                or []
-            )
-
+        for feature in data.get("features", [])[:limit]:
+            props = feature.get("properties") or {}
+            geometry = feature.get("geometry") or {}
+            coords = geometry.get("coordinates") or []
             if len(coords) < 2:
                 continue
-
-            lon = _safe_float(
-                coords[0]
-            )
-
-            lat = _safe_float(
-                coords[1]
-            )
-
-            if (
-                lat is None
-                or
-                lon is None
-            ):
+            lon = _safe_float(coords[0])
+            lat = _safe_float(coords[1])
+            if lat is None or lon is None:
                 continue
-
-            title = clean_text(
-                props.get("title")
-                or
-                "USGS earthquake"
-            )
-
-            link = (
-                props.get("url")
-                or
-                "https://earthquake.usgs.gov/"
-            )
-
-            magnitude = props.get(
-                "mag"
-            )
-
-            place = clean_text(
-                props.get("place")
-                or
-                "Global"
-            )
-
-            time_ms = props.get(
-                "time"
-            )
-
+            title = clean_text(props.get("title") or "USGS earthquake")
+            link = props.get("url") or "https://earthquake.usgs.gov/"
+            magnitude = props.get("mag")
+            place = clean_text(props.get("place") or "Global")
+            time_ms = props.get("time")
             time_text = ""
-
             if time_ms:
-
-                time_text = time.strftime(
-                    "%Y-%m-%d %H:%M UTC",
-                    time.gmtime(
-                        time_ms / 1000
-                    )
-                )
-
-            summary = (
-                f"Magnitude {magnitude} "
-                f"— {place}"
-            )
-
+                time_text = time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime(time_ms / 1000))
+            summary = f"Magnitude {magnitude} — {place}"
             if time_text:
-
-                summary += (
-                    f" — {time_text}"
-                )
-
-            articles.append(
-                {
-                    "title": title,
-                    "link": link,
-                    "location_name": place,
-                    "lat": lat,
-                    "lon": lon,
-                    "source": "USGS",
-                    "summary": summary,
-
-                    # USGS is blue.
-                    "is_un_data": True,
-                }
-            )
-
+                summary += f" — {time_text}"
+            articles.append({
+                "title": title,
+                "link": link,
+                "location_name": place,
+                "lat": lat,
+                "lon": lon,
+                "source": "USGS",
+                "summary": summary,
+                "is_un_data": True,
+            })
     except Exception:
         pass
-
     return articles
 
 
@@ -991,36 +382,10 @@ def fetch_usgs_geojson(
 # USGS ATOM
 # ================================================================
 
-@st.cache_data(
-    ttl=60,
-    show_spinner=False
-)
-def fetch_usgs_atom(
-    limit=12
-):
-
-    articles = fetch_rss(
-        (
-            "https://earthquake.usgs.gov/"
-            "earthquakes/feed/v1.0/"
-            "summary/all_day.atom"
-        ),
-
-        "USGS",
-
-        limit=limit,
-
-        only_relevant=False
-    )
-
-    return [
-        {
-            **article,
-            "is_un_data": True
-        }
-
-        for article in articles
-    ]
+@st.cache_data(ttl=60, show_spinner=False)
+def fetch_usgs_atom(limit=12):
+    articles = fetch_rss("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.atom", "USGS", limit=limit, only_relevant=False)
+    return [{**article, "is_un_data": True} for article in articles]
 
 
 # ================================================================
@@ -1028,81 +393,24 @@ def fetch_usgs_atom(
 # ================================================================
 
 def fetch_live_media():
-
     all_articles = []
-
     feeds = [
-
-        (
-            "BBC (UK)",
-            "https://feeds.bbci.co.uk/"
-            "news/rss.xml"
-        ),
-
-        (
-            "SKY NEWS",
-            "https://feeds.skynews.com/"
-            "feeds/rss/home.xml"
-        ),
-
-        (
-            "AL JAZEERA",
-            "https://www.aljazeera.com/"
-            "xml/rss/all.xml"
-        ),
-
-        (
-            "THE GUARDIAN",
-            "https://www.theguardian.com/"
-            "world/rss"
-        ),
-
-        (
-            "FRANCE 24",
-            "https://www.france24.com/"
-            "en/rss"
-        ),
+        ("BBC (UK)", "https://feeds.bbci.co.uk/news/rss.xml"),
+        ("SKY NEWS", "https://feeds.skynews.com/feeds/rss/home.xml"),
+        ("AL JAZEERA", "https://www.aljazeera.com/xml/rss/all.xml"),
+        ("THE GUARDIAN", "https://www.theguardian.com/world/rss"),
+        ("FRANCE 24", "https://www.france24.com/en/rss"),
     ]
-
-
     for source, url in feeds:
-
-        all_articles.extend(
-            fetch_rss(
-                url,
-                source,
-                limit=8,
-                only_relevant=True
-            )
-        )
-
-
-    # ------------------------------------------------------------
-    # REMOVE DUPLICATE HEADLINES
-    # ------------------------------------------------------------
-
+        all_articles.extend(fetch_rss(url, source, limit=8, only_relevant=True))
     seen = set()
-
     unique = []
-
     for article in all_articles:
-
-        key = (
-            article["title"]
-            .strip()
-            .lower()
-        )
-
+        key = article["title"].strip().lower()
         if key in seen:
             continue
-
         seen.add(key)
-
-        unique.append(
-            article
-        )
-
-
+        unique.append(article)
     return unique
 
 
@@ -1111,56 +419,12 @@ def fetch_live_media():
 # ================================================================
 
 feed_articles = []
-
-
-# GDACS
-feed_articles.extend(
-    fetch_rss(
-        FEED_CONFIG[0]["feed_url"],
-        "GDACS",
-        limit=8
-    )
-)
-
-
-# GDACS NEW
-feed_articles.extend(
-    fetch_rss(
-        FEED_CONFIG[1]["feed_url"],
-        "GDACS",
-        limit=8
-    )
-)
-
-
-# ReliefWeb
-feed_articles.extend(
-    fetch_reliefweb(
-        limit=15
-    )
-)
-
-
-# USGS GeoJSON
-feed_articles.extend(
-    fetch_usgs_geojson(
-        limit=20
-    )
-)
-
-
-# USGS Atom
-feed_articles.extend(
-    fetch_usgs_atom(
-        limit=12
-    )
-)
-
-
-# RED MEDIA FEEDS
-feed_articles.extend(
-    fetch_live_media()
-)
+feed_articles.extend(fetch_rss(FEED_CONFIG[0]["feed_url"], "GDACS", limit=8))
+feed_articles.extend(fetch_rss(FEED_CONFIG[1]["feed_url"], "GDACS", limit=8))
+feed_articles.extend(fetch_reliefweb(limit=15))
+feed_articles.extend(fetch_usgs_geojson(limit=20))
+feed_articles.extend(fetch_usgs_atom(limit=12))
+feed_articles.extend(fetch_live_media())
 
 
 # ================================================================
@@ -1168,1139 +432,172 @@ feed_articles.extend(
 # ================================================================
 
 seen = set()
-
 mapped_alerts = []
-
-
 for article in feed_articles:
-
-    key = (
-        article["title"]
-        .strip()
-        .lower(),
-
-        round(
-            article["lat"],
-            3
-        ),
-
-        round(
-            article["lon"],
-            3
-        )
-    )
-
+    key = (article["title"].strip().lower(), round(article["lat"], 3), round(article["lon"], 3))
     if key in seen:
         continue
-
     seen.add(key)
-
-    mapped_alerts.append(
-        article
-    )
+    mapped_alerts.append(article)
 
 
 # ================================================================
 # ARTICLE VIEW
 # ================================================================
 
-requested_article = (
-    st.query_params.get(
-        "article"
-    )
-)
-
-
+requested_article = st.query_params.get("article")
 if requested_article is not None:
-
     try:
-
-        article_idx = int(
-            requested_article
-        )
-
-    except (
-        TypeError,
-        ValueError
-    ):
-
+        article_idx = int(requested_article)
+    except (TypeError, ValueError):
         article_idx = None
-
-
-    article = (
-
-        mapped_alerts[
-            article_idx
-        ]
-
-        if (
-            article_idx is not None
-            and
-            0 <= article_idx
-            < len(mapped_alerts)
-        )
-
-        else None
-    )
-
-
-    # ------------------------------------------------------------
-    # ARTICLE PAGE CSS
-    # ------------------------------------------------------------
+    article = mapped_alerts[article_idx] if (article_idx is not None and 0 <= article_idx < len(mapped_alerts)) else None
 
     st.markdown(
         _flatten_html("""
         <style>
-
-        .stApp,
-        .stAppViewContainer,
-        .stAppViewBlockContainer,
-        .main,
-        .main .block-container {
-
+        .stApp, .stAppViewContainer, .stAppViewBlockContainer,
+        .main, .main .block-container {
             padding: 0 !important;
             margin: 0 !important;
-
             max-width: 100% !important;
             width: 100% !important;
-
-            background-color:
-                #111827 !important;
+            background-color: #111827 !important;
         }
-
-
         div[data-testid="stButton"] {
-
             position: fixed !important;
-
             top: 40px !important;
             left: 40px !important;
-
             z-index: 2147483647 !important;
-
             width: auto !important;
         }
-
-
-        div[data-testid="stButton"]
-        button {
-
-            background-color:
-                #181d29 !important;
-
+        div[data-testid="stButton"] button {
+            background-color: #181d29 !important;
             color: #ffffff !important;
-
-            border:
-                2px solid
-                rgba(255,255,255,.18)
-                !important;
-
+            border: 2px solid rgba(255,255,255,.18) !important;
             border-radius: 8px !important;
-
-            padding:
-                10px 20px !important;
-
+            padding: 10px 20px !important;
             font-size: 13px !important;
-
             font-weight: 800 !important;
-
-            font-family:
-                Arial,
-                sans-serif !important;
-
-            box-shadow:
-                0 6px 20px
-                rgba(0,0,0,.5)
-                !important;
+            font-family: Arial, sans-serif !important;
+            box-shadow: 0 6px 20px rgba(0,0,0,.5) !important;
         }
-
-
         .article-wrap {
-
             max-width: 680px;
-
-            margin:
-                120px auto 40px;
-
-            padding:
-                0 24px;
-
-            font-family:
-                Arial,
-                sans-serif;
-
+            margin: 120px auto 40px;
+            padding: 0 24px;
+            font-family: Arial, sans-serif;
             color: #e5e7eb;
         }
-
-
         .article-source-pill {
-
             display: inline-block;
-
-            background:
-                #3b70b4;
-
+            background: #3b70b4;
             color: white;
-
             border-radius: 5px;
-
-            padding:
-                5px 10px;
-
+            padding: 5px 10px;
             font-size: 11px;
-
             font-weight: 800;
-
             margin-bottom: 12px;
         }
-
-
         .article-location {
-
             color: #75b9f5;
-
             font-size: 13px;
-
             font-weight: 900;
-
-            text-transform:
-                uppercase;
-
+            text-transform: uppercase;
             letter-spacing: 1px;
-
             margin-bottom: 8px;
         }
-
-
         .article-title {
-
             color: white;
-
             font-size: 28px;
-
             font-weight: 800;
-
             line-height: 1.25;
-
             margin-bottom: 18px;
         }
-
-
         .article-summary {
-
             color: #aab5c7;
-
             font-size: 16px;
-
             line-height: 1.6;
-
             margin-bottom: 30px;
         }
-
-
         .article-open-btn {
-
             display: inline-block;
-
-            background:
-                #3182ce;
-
+            background: #3182ce;
             color: white;
-
-            text-decoration:
-                none !important;
-
+            text-decoration: none !important;
             font-weight: 800;
-
             font-size: 14px;
-
-            padding:
-                12px 24px;
-
+            padding: 12px 24px;
             border-radius: 8px;
-
-            font-family:
-                Arial,
-                sans-serif;
-
+            font-family: Arial, sans-serif;
             cursor: pointer;
         }
-
         </style>
         """),
         unsafe_allow_html=True
     )
 
-
-    # ------------------------------------------------------------
-    # BACK BUTTON
-    # ------------------------------------------------------------
-
-    if st.button(
-        "← Back to Map",
-        key="back_to_map"
-    ):
-
+    if st.button("← Back to Map", key="back_to_map"):
         st.query_params.clear()
-
         st.rerun()
 
-
-    # ------------------------------------------------------------
-    # ARTICLE
-    # ------------------------------------------------------------
-
     if article:
-
-        article_url = str(
-            article["link"]
-        )
-
+        article_url = str(article["link"])
         st.markdown(
             '<div class="article-wrap">'
-
-            f'<div class="article-source-pill">'
-            f'{html.escape(str(article["source"]))}'
-            f'</div>'
-
-            f'<div class="article-location">'
-            f'📍 '
-            f'{html.escape(str(article["location_name"]))}'
-            f'</div>'
-
-            f'<div class="article-title">'
-            f'{html.escape(str(article["title"]))}'
-            f'</div>'
-
-            f'<div class="article-summary">'
-            f'{html.escape(str(article["summary"]))}'
-            f'</div>'
-
-            f'<a '
-            f'class="article-open-btn" '
-            f'href="{html.escape(article_url)}" '
-            f'target="_blank">'
-            f'Open Full Article Source ↗'
-            f'</a>'
-
+            f'<div class="article-source-pill">{html.escape(str(article["source"]))}</div>'
+            f'<div class="article-location">📍 {html.escape(str(article["location_name"]))}</div>'
+            f'<div class="article-title">{html.escape(str(article["title"]))}</div>'
+            f'<div class="article-summary">{html.escape(str(article["summary"]))}</div>'
+            f'<a class="article-open-btn" href="{html.escape(article_url)}" target="_blank">Open Full Article Source ↗</a>'
             '</div>',
-
             unsafe_allow_html=True
         )
-
     else:
-
         st.markdown(
             '<div class="article-wrap">'
-
-            '<div class="article-title">'
-            'Article not found'
-            '</div>'
-
-            '<div class="article-summary">'
-            'This item may have expired from the '
-            'live tracking logs.'
-            '</div>'
-
+            '<div class="article-title">Article not found</div>'
+            '<div class="article-summary">This item may have expired from the live tracking logs.</div>'
             '</div>',
-
             unsafe_allow_html=True
         )
-
-
     st.stop()
 
 
 # ================================================================
 # RED-PIN TICKER DATA
 # ================================================================
-#
-# ONLY NON-BLUE ITEMS.
-#
-# is_un_data == False
-#
-# Therefore:
-#
-#   RED = ticker
-#   BLUE = map only
-# ================================================================
 
 ticker_items = []
-
-
-for alert_idx, item in enumerate(
-    mapped_alerts
-):
-
-    # ------------------------------------------------------------
-    # CRITICAL FILTER
-    # ------------------------------------------------------------
-
+for alert_idx, item in enumerate(mapped_alerts):
     if item.get("is_un_data"):
         continue
-
-
-    title_text = BeautifulSoup(
-        str(
-            item.get(
-                "title",
-                ""
-            )
-        ),
-        "html.parser"
-    ).get_text()
-
-
-    title_text = clean_text(
-        title_text
-    )
-
-
-    source_text = clean_text(
-        str(
-            item.get(
-                "source",
-                ""
-            )
-        )
-    )
-
-
-    location_text = clean_text(
-        str(
-            item.get(
-                "location_name",
-                ""
-            )
-        )
-    )
-
-
+    title_text = BeautifulSoup(str(item.get("title", "")), "html.parser").get_text()
+    title_text = clean_text(title_text)
+    source_text = clean_text(str(item.get("source", "")))
+    location_text = clean_text(str(item.get("location_name", "")))
     if not title_text:
         continue
-
-
-    ticker_items.append(
-        {
-            "title": title_text,
-
-            "source": source_text,
-
-            "location": location_text,
-
-            "url": (
-                f"?article={alert_idx}"
-            )
-        }
-    )
+    ticker_items.append({
+        "title": title_text,
+        "source": source_text,
+        "location": location_text,
+        "url": f"?article={alert_idx}"
+    })
 
 
 # ================================================================
 # BANNER IMAGE
 # ================================================================
 
-BANNER_PATH = (
-    Path(__file__).resolve().parent
-    / "assets"
-    / "infriendshipwith.png"
-)
-
-
+BANNER_PATH = Path(__file__).resolve().parent / "assets" / "infriendshipwith.png"
 banner_data = ""
-
-
 if BANNER_PATH.exists():
-
     try:
-
-        banner_bytes = (
-            BANNER_PATH.read_bytes()
-        )
-
-        banner_data = (
-            "data:image/png;base64,"
-            +
-            base64.b64encode(
-                banner_bytes
-            ).decode("ascii")
-        )
-
+        banner_bytes = BANNER_PATH.read_bytes()
+        banner_data = "data:image/png;base64," + base64.b64encode(banner_bytes).decode("ascii")
     except Exception:
-
         banner_data = ""
-
-
-# ================================================================
-# TICKER COMPONENT
-# ================================================================
-#
-# THIS IS THE IMPORTANT PART.
-#
-# st.components.v1.html() creates a real browser component.
-#
-# JavaScript inside this component WILL execute.
-# ================================================================
-
-ticker_json = json.dumps(
-    ticker_items,
-    ensure_ascii=False
-)
-
-
-banner_json = json.dumps(
-    banner_data
-)
-
-
-components.html(
-
-    f"""
-    <!DOCTYPE html>
-
-    <html>
-
-    <head>
-
-        <meta charset="UTF-8">
-
-        <style>
-
-            * {{
-                box-sizing: border-box;
-            }}
-
-
-            html,
-            body {{
-                margin: 0;
-                padding: 0;
-
-                width: 100%;
-                height: 100%;
-
-                overflow: hidden;
-
-                background:
-                    #111827;
-
-                font-family:
-                    Arial,
-                    sans-serif;
-            }}
-
-
-            /* ====================================================
-               TICKER
-               ==================================================== */
-
-            #ticker {{
-
-                position: relative;
-
-                width: 100%;
-                height: 100%;
-
-                overflow: hidden;
-
-                background:
-                    #111827;
-
-                color: white;
-
-                border-top:
-                    1px solid
-                    rgba(255,255,255,.12);
-
-                box-shadow:
-                    0 -5px 18px
-                    rgba(0,0,0,.35);
-            }}
-
-
-            /* ====================================================
-               HEADER
-               ==================================================== */
-
-            #ticker-header {{
-
-                position: absolute;
-
-                left: 0;
-                right: 0;
-                top: 0;
-
-                height: 34px;
-
-                display: flex;
-
-                align-items: center;
-
-                justify-content:
-                    space-between;
-
-                padding:
-                    0 20px;
-
-                font-size: 11px;
-
-                font-weight: 900;
-
-                letter-spacing:
-                    .8px;
-
-                text-transform:
-                    uppercase;
-
-                color:
-                    #e5e7eb;
-
-                z-index: 10;
-            }}
-
-
-            /* ====================================================
-               CONTENT
-               ==================================================== */
-
-            #ticker-content {{
-
-                position: absolute;
-
-                left: 0;
-                right: 0;
-
-                top: 34px;
-                bottom: 0;
-
-                padding:
-                    12px 22px;
-
-                display: flex;
-
-                align-items: center;
-
-                justify-content: center;
-
-                opacity: 1;
-
-                transition:
-                    opacity .35s ease;
-            }}
-
-
-            #ticker-content.fade {{
-                opacity: 0;
-            }}
-
-
-            /* ====================================================
-               HEADLINE
-               ==================================================== */
-
-            .headline {{
-                width: 100%;
-            }}
-
-
-            .headline-top {{
-
-                display: flex;
-
-                align-items: center;
-
-                gap: 10px;
-
-                margin-bottom: 6px;
-            }}
-
-
-            .source {{
-
-                display: inline-block;
-
-                padding:
-                    4px 8px;
-
-                border-radius: 4px;
-
-                background:
-                    #3b70b4;
-
-                color: white;
-
-                font-size: 9px;
-
-                font-weight: 900;
-
-                letter-spacing:
-                    .5px;
-
-                text-transform:
-                    uppercase;
-
-                white-space: nowrap;
-            }}
-
-
-            .location {{
-
-                color:
-                    #ff8b8b;
-
-                font-size: 9px;
-
-                font-weight: 800;
-
-                letter-spacing:
-                    .5px;
-
-                text-transform:
-                    uppercase;
-
-                overflow: hidden;
-
-                text-overflow:
-                    ellipsis;
-
-                white-space: nowrap;
-            }}
-
-
-            .title {{
-
-                color: white;
-
-                font-size: 15px;
-
-                font-weight: 800;
-
-                line-height: 1.35;
-            }}
-
-
-            .title a {{
-
-                color: white;
-
-                text-decoration:
-                    none;
-            }}
-
-
-            .title a:hover {{
-                color:
-                    #75b9f5;
-            }}
-
-
-            /* ====================================================
-               BANNER
-               ==================================================== */
-
-            .banner {{
-
-                width: 100%;
-
-                height: 100%;
-
-                display: flex;
-
-                align-items: center;
-
-                justify-content: center;
-
-                background:
-                    white;
-
-                overflow: hidden;
-            }}
-
-
-            .banner img {{
-
-                display: block;
-
-                width: 100%;
-
-                height: auto;
-
-                max-height: 100%;
-
-                object-fit:
-                    contain;
-            }}
-
-
-            .banner-fallback {{
-
-                color:
-                    #202938;
-
-                font-family:
-                    Georgia,
-                    serif;
-
-                font-size: 26px;
-
-                font-weight: 700;
-
-                text-align: center;
-            }}
-
-        </style>
-
-    </head>
-
-
-    <body>
-
-        <div id="ticker">
-
-            <div id="ticker-header">
-
-                <span>
-                    🛰️ LIVE DATA SOURCES
-                </span>
-
-                <span>
-                    LIVE PIN HEADLINES
-                </span>
-
-            </div>
-
-
-            <div id="ticker-content"></div>
-
-        </div>
-
-
-        <script>
-
-            /* ====================================================
-               DATA FROM STREAMLIT
-               ==================================================== */
-
-            const headlines =
-                {ticker_json};
-
-
-            const banner =
-                {banner_json};
-
-
-            /* ====================================================
-               TIMING
-               ==================================================== */
-
-            const DISPLAY_TIME = 5000;
-
-            const FADE_TIME = 350;
-
-
-            /* ====================================================
-               STATE
-               ==================================================== */
-
-            let currentIndex = 0;
-
-
-            const content =
-                document.getElementById(
-                    "ticker-content"
-                );
-
-
-            /* ====================================================
-               RENDER HEADLINE
-               ==================================================== */
-
-            function renderHeadline(item) {{
-
-                const wrapper =
-                    document.createElement(
-                        "div"
-                    );
-
-                wrapper.className =
-                    "headline";
-
-
-                const top =
-                    document.createElement(
-                        "div"
-                    );
-
-                top.className =
-                    "headline-top";
-
-
-                const source =
-                    document.createElement(
-                        "span"
-                    );
-
-                source.className =
-                    "source";
-
-                source.textContent =
-                    item.source;
-
-
-                const location =
-                    document.createElement(
-                        "span"
-                    );
-
-                location.className =
-                    "location";
-
-                location.textContent =
-                    "📍 " +
-                    item.location;
-
-
-                top.appendChild(
-                    source
-                );
-
-                top.appendChild(
-                    location
-                );
-
-
-                const title =
-                    document.createElement(
-                        "div"
-                    );
-
-                title.className =
-                    "title";
-
-
-                const link =
-                    document.createElement(
-                        "a"
-                    );
-
-                link.href =
-                    item.url;
-
-                link.target =
-                    "_top";
-
-                link.textContent =
-                    item.title +
-                    " ↗";
-
-
-                title.appendChild(
-                    link
-                );
-
-
-                wrapper.appendChild(
-                    top
-                );
-
-                wrapper.appendChild(
-                    title
-                );
-
-
-                return wrapper;
-            }}
-
-
-            /* ====================================================
-               RENDER BANNER
-               ==================================================== */
-
-            function renderBanner() {{
-
-                const wrapper =
-                    document.createElement(
-                        "div"
-                    );
-
-                wrapper.className =
-                    "banner";
-
-
-                if (banner) {{
-
-                    const image =
-                        document.createElement(
-                            "img"
-                        );
-
-                    image.src =
-                        banner;
-
-                    image.alt =
-                        "In friendship with Air Brussels Times";
-
-
-                    wrapper.appendChild(
-                        image
-                    );
-
-                }} else {{
-
-                    const fallback =
-                        document.createElement(
-                            "div"
-                        );
-
-                    fallback.className =
-                        "banner-fallback";
-
-                    fallback.textContent =
-                        "In friendship with: Air Brussels Times";
-
-
-                    wrapper.appendChild(
-                        fallback
-                    );
-                }}
-
-
-                return wrapper;
-            }}
-
-
-            /* ====================================================
-               DISPLAY CURRENT ITEM
-               ==================================================== */
-
-            function displayCurrent() {{
-
-                content.classList.add(
-                    "fade"
-                );
-
-
-                setTimeout(
-                    function() {{
-
-                        content.innerHTML = "";
-
-
-                        /*
-                         * Headlines first.
-                         */
-                        if (
-                            currentIndex <
-                            headlines.length
-                        ) {{
-
-                            content.appendChild(
-                                renderHeadline(
-                                    headlines[
-                                        currentIndex
-                                    ]
-                                )
-                            );
-
-                        }}
-
-
-                        /*
-                         * Banner after the final
-                         * red headline.
-                         */
-                        else {{
-
-                            content.appendChild(
-                                renderBanner()
-                            );
-                        }}
-
-
-                        content.classList.remove(
-                            "fade"
-                        );
-
-                    }},
-                    FADE_TIME
-                );
-            }}
-
-
-            /* ====================================================
-               INITIAL DISPLAY
-               ==================================================== */
-
-            if (
-                headlines.length > 0
-            ) {{
-
-                content.appendChild(
-                    renderHeadline(
-                        headlines[0]
-                    )
-                );
-
-            }} else {{
-
-                content.appendChild(
-                    renderBanner()
-                );
-            }}
-
-
-            /* ====================================================
-               COMPLETE CYCLE
-               ====================================================
-               
-               Example:
-               
-               headlines.length = 5
-               
-               index 0 = headline 1
-               index 1 = headline 2
-               index 2 = headline 3
-               index 3 = headline 4
-               index 4 = headline 5
-               index 5 = banner
-               index 6 = back to headline 1
-               ==================================================== */
-
-            const totalItems =
-                headlines.length + 1;
-
-
-            setInterval(
-                function() {{
-
-                    currentIndex++;
-
-
-                    if (
-                        currentIndex >=
-                        totalItems
-                    ) {{
-
-                        currentIndex = 0;
-                    }}
-
-
-                    displayCurrent();
-
-                }},
-                DISPLAY_TIME
-            );
-
-        </script>
-
-    </body>
-
-    </html>
-    """,
-
-    height=190,
-
-    scrolling=False
-)
 
 
 # ================================================================
@@ -2308,556 +605,351 @@ components.html(
 # ================================================================
 
 live_pin_items = []
-
-
-for (
-    alert_idx,
-    item
-) in enumerate(
-    mapped_alerts
-):
-
+for alert_idx, item in enumerate(mapped_alerts):
     try:
-
-        lat = float(
-            item.get("lat")
-        )
-
-        lon = float(
-            item.get("lon")
-        )
-
-        if (
-            -90.0 <= lat <= 90.0
-            and
-            -180.0 <= lon <= 180.0
-        ):
-
-            live_pin_items.append(
-                (
-                    alert_idx,
-                    item,
-                    lat,
-                    lon
-                )
-            )
-
-    except (
-        TypeError,
-        ValueError
-    ):
-
+        lat = float(item.get("lat"))
+        lon = float(item.get("lon"))
+        if -90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0:
+            live_pin_items.append((alert_idx, item, lat, lon))
+    except (TypeError, ValueError):
         continue
 
-
-# ================================================================
-# FOLIUM MAP
-# ================================================================
-
-m = folium.Map(
-
-    location=[
-        20.0,
-        0.0
-    ],
-
-    zoom_start=2,
-
-    min_zoom=2,
-
-    max_bounds=True,
-
-    zoom_control=False,
-
-    scrollWheelZoom=True,
-
-    touchZoom=True
-)
-
-
-# ================================================================
-# DARK MAP TILES
-# ================================================================
+m = folium.Map(location=[20.0, 0.0], zoom_start=2, min_zoom=2, max_bounds=True,
+               zoom_control=False, scrollWheelZoom=True, touchZoom=True)
 
 folium.TileLayer(
-
-    tiles=(
-        "https://{s}.basemaps.cartocdn.com/"
-        "dark_all/{z}/{x}/{y}{r}.png"
-    ),
-
-    attr=(
-        "&copy; OpenStreetMap "
-        "&copy; CARTO"
-    ),
-
+    tiles="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    attr="&copy; OpenStreetMap &copy; CARTO",
     name="Dark Matter",
-
     subdomains="abcd",
-
     no_wrap=True
-
 ).add_to(m)
 
-
-# ================================================================
-# MAP BACKGROUND
-# ================================================================
-
 m.get_root().html.add_child(
-    folium.Element(
-        """
-        <style>
-
-            html,
-            body {
-                background:
-                    #262626 !important;
-
-                margin: 0;
-                padding: 0;
-            }
-
-            .leaflet-container {
-                background:
-                    #262626 !important;
-            }
-
-        </style>
-        """
-    )
+    folium.Element("""
+    <style>
+        html, body { background: #262626 !important; margin: 0; padding: 0; }
+        .leaflet-container { background: #262626 !important; }
+    </style>
+    """)
 )
 
-
-# ================================================================
-# MARKERS
-# ================================================================
-
 marker_click_scripts = []
-
-
-for (
-    alert_idx,
-    item,
-    lat,
-    lon
-) in live_pin_items:
-
-    # ------------------------------------------------------------
-    # RED / BLUE
-    # ------------------------------------------------------------
-
+for alert_idx, item, lat, lon in live_pin_items:
     if item["is_un_data"]:
-
         marker_color = "#3182ce"
         border_color = "#63b3ed"
-
     else:
-
         marker_color = "#ff4b4b"
         border_color = "#ff8080"
 
-
-    # ------------------------------------------------------------
-    # POPUP
-    # ------------------------------------------------------------
-
     popup_html = (
-
-        '<div '
-        'style="'
-        'font-family:sans-serif;'
-        'font-size:12px;'
-        'width:240px;'
-        'color:#1a1f2c;'
-        'line-height:1.4;'
-        '">'
-
-        '<span '
-        'style="'
-        'color:#718096;'
-        'font-weight:800;'
-        'font-size:10px;'
-        'text-transform:uppercase;'
-        '">'
-
-        f'📍 '
-        f'{html.escape(str(item["location_name"]))}'
-        f' — '
-        f'{html.escape(str(item["source"]))}'
-
-        '</span>'
-
-        '<br>'
-
-        f'<a '
-        f'href="?article={alert_idx}" '
-        f'target="_top" '
-        f'style="'
-        f'text-decoration:none;'
-        f'font-weight:700;'
-        f'color:{marker_color};'
-        f'display:inline-block;'
-        f'margin-top:4px;'
-        f'">'
-
+        '<div style="font-family:sans-serif;font-size:12px;width:240px;color:#1a1f2c;line-height:1.4;">'
+        f'<span style="color:#718096;font-weight:800;font-size:10px;text-transform:uppercase;">'
+        f'📍 {html.escape(str(item["location_name"]))} — {html.escape(str(item["source"]))}'
+        '</span><br>'
+        f'<a href="?article={alert_idx}" target="_top" style="text-decoration:none;font-weight:700;color:{marker_color};display:inline-block;margin-top:4px;">'
         f'{html.escape(str(item["title"]))} ↗'
-
-        '</a>'
-
-        '</div>'
+        '</a></div>'
     )
-
-
-    # ------------------------------------------------------------
-    # MARKER
-    # ------------------------------------------------------------
 
     marker = folium.CircleMarker(
-
-        location=[
-            lat,
-            lon
-        ],
-
-        radius=(
-            11
-            if item["is_un_data"]
-            else 9
-        ),
-
-        popup=folium.Popup(
-            popup_html,
-            max_width=280
-        ),
-
+        location=[lat, lon],
+        radius=11 if item["is_un_data"] else 9,
+        popup=folium.Popup(popup_html, max_width=280),
         color=border_color,
-
         fill=True,
-
         fill_color=marker_color,
-
         fill_opacity=0.75
     )
-
-
     marker.add_to(m)
-
-
-    # ------------------------------------------------------------
-    # CLICK = ZOOM
-    # ------------------------------------------------------------
-
     marker_click_scripts.append(
-
-        f"{marker.get_name()}.on("
-        f"'click', "
-        f"function(e) {{"
-
-        f"{m.get_name()}.flyTo("
-        f"e.latlng, "
-        f"Math.max("
-        f"{m.get_name()}.getZoom(), "
-        f"6"
-        f"), "
-        f"{{duration:0.75}}"
-        f");"
-
-        f"}}"
-        f");"
+        f"{marker.get_name()}.on('click', function(e) {{"
+        f"{m.get_name()}.flyTo(e.latlng, Math.max({m.get_name()}.getZoom(), 6), {{duration:0.75}});"
+        f"}});"
     )
-
-
-# ================================================================
-# DEFERRED MARKER EVENTS
-# ================================================================
 
 if marker_click_scripts:
-
     deferred_click_script = (
-
-        "document.addEventListener("
-        "'DOMContentLoaded',"
-        "function(){"
-
-        +
-        "".join(
-            marker_click_scripts
-        )
-
-        +
-        "});"
+        "document.addEventListener('DOMContentLoaded',function(){"
+        + "".join(marker_click_scripts)
+        + "});"
     )
+    m.get_root().html.add_child(folium.Element("<script>" + deferred_click_script + "</script>"))
 
-
-    m.get_root().html.add_child(
-        folium.Element(
-            "<script>"
-            +
-            deferred_click_script
-            +
-            "</script>"
-        )
-    )
-
-
-# ================================================================
-# MAP FOCUS
-# ================================================================
-
-focus_pin_items = [
-
-    item_tuple
-
-    for item_tuple
-    in live_pin_items
-
-    if not item_tuple[1]["is_un_data"]
-]
-
-
+focus_pin_items = [item_tuple for item_tuple in live_pin_items if not item_tuple[1]["is_un_data"]]
 if not focus_pin_items:
-
-    focus_pin_items = (
-        live_pin_items
-    )
-
-
-# ================================================================
-# FIT MAP
-# ================================================================
+    focus_pin_items = live_pin_items
 
 if live_pin_items:
-
-    lats = [
-        lat
-        for (
-            _,
-            _,
-            lat,
-            _
-        )
-        in focus_pin_items
-    ]
-
-
-    lons = [
-        lon
-        for (
-            _,
-            _,
-            _,
-            lon
-        )
-        in focus_pin_items
-    ]
-
-
-    if len(
-        focus_pin_items
-    ) == 1:
-
-        m.location = [
-            lats[0],
-            lons[0]
-        ]
-
-        m.options[
-            "zoom"
-        ] = 8
-
+    lats = [lat for (_, _, lat, _) in focus_pin_items]
+    lons = [lon for (_, _, _, lon) in focus_pin_items]
+    if len(focus_pin_items) == 1:
+        m.location = [lats[0], lons[0]]
+        m.options["zoom"] = 8
     else:
-
         south = min(lats)
         north = max(lats)
-
         west = min(lons)
         east = max(lons)
-
-
-        lat_span = (
-            north - south
-        )
-
-        lon_span = (
-            east - west
-        )
-
-
-        lat_pad = max(
-            1.0,
-            lat_span * 0.08
-        )
-
-
-        lon_pad = max(
-            1.5,
-            lon_span * 0.08
-        )
-
-
-        south = max(
-            -90.0,
-            south - lat_pad
-        )
-
-
-        north = min(
-            90.0,
-            north + lat_pad
-        )
-
-
-        west_bound = max(
-            -180.0,
-            west - lon_pad
-        )
-
-
-        east_bound = min(
-            180.0,
-            east + lon_pad
-        )
-
-
-        m.fit_bounds(
-
-            [
-                [
-                    south,
-                    west_bound
-                ],
-
-                [
-                    north,
-                    east_bound
-                ]
-            ],
-
-            padding=(
-                10,
-                10
-            ),
-
-            max_zoom=10
-        )
-
-
-# ================================================================
-# MAP RESIZE / VIEW FIX
-# ================================================================
+        lat_span = north - south
+        lon_span = east - west
+        lat_pad = max(1.0, lat_span * 0.08)
+        lon_pad = max(1.5, lon_span * 0.08)
+        south = max(-90.0, south - lat_pad)
+        north = min(90.0, north + lat_pad)
+        west_bound = max(-180.0, west - lon_pad)
+        east_bound = min(180.0, east + lon_pad)
+        m.fit_bounds([[south, west_bound], [north, east_bound]], padding=(10, 10), max_zoom=10)
 
 if live_pin_items:
-
-    if len(
-        focus_pin_items
-    ) == 1:
-
-        reapply_view_js = (
-
-            f"{m.get_name()}.setView("
-            f"[{lats[0]}, {lons[0]}], "
-            f"8"
-            f");"
-        )
-
+    if len(focus_pin_items) == 1:
+        reapply_view_js = f"{m.get_name()}.setView([{lats[0]}, {lons[0]}], 8);"
     else:
-
-        reapply_view_js = (
-
-            f"{m.get_name()}.fitBounds("
-            f"[["
-            f"{south},"
-            f"{west_bound}"
-            f"],["
-            f"{north},"
-            f"{east_bound}"
-            f"]],"
-            f"{{padding:[10,10],maxZoom:10}}"
-            f");"
-        )
-
-
+        reapply_view_js = f"{m.get_name()}.fitBounds([[{south},{west_bound}],[{north},{east_bound}]],{{padding:[10,10],maxZoom:10}});"
     resize_fix_script = (
-
         "<script>"
-
-        "function __fixMapView(){"
-
-        "try{"
-
+        "function __fixMapView(){try{"
         f"{m.get_name()}.invalidateSize();"
-
         f"{reapply_view_js}"
-
-        "}catch(e){}"
-
-        "}"
-
-        "window.addEventListener("
-        "'load',"
-        "function(){"
-
+        "}catch(e){}}"
+        "window.addEventListener('load',function(){"
         "__fixMapView();"
-
-        "setTimeout("
-        "__fixMapView,"
-        "200"
-        ");"
-
-        "setTimeout("
-        "__fixMapView,"
-        "600"
-        ");"
-
-        "setTimeout("
-        "__fixMapView,"
-        "1200"
-        ");"
-
+        "setTimeout(__fixMapView,200);"
+        "setTimeout(__fixMapView,600);"
+        "setTimeout(__fixMapView,1200);"
         "});"
-
-
-        "window.addEventListener("
-        "'resize',"
-        "__fixMapView"
-        ");"
-
-
+        "window.addEventListener('resize',__fixMapView);"
         "if(window.ResizeObserver){"
-
-        "new ResizeObserver("
-        "__fixMapView"
-        ").observe("
-        "document.body"
-        ");"
-
+        "new ResizeObserver(__fixMapView).observe(document.body);"
         "}"
-
         "</script>"
     )
-
-
-    m.get_root().html.add_child(
-        folium.Element(
-            resize_fix_script
-        )
-    )
+    m.get_root().html.add_child(folium.Element(resize_fix_script))
 
 
 # ================================================================
-# MAP RENDER
+# MAP RENDER – NOW FIRST
 # ================================================================
 
 st_folium(
-
     m,
-
     width="100%",
-
     height=680,
-
     returned_objects=[],
-
     key="tactical_map_flush_v31"
+)
+
+
+# ================================================================
+# TICKER COMPONENT – NOW AT THE BOTTOM
+# ================================================================
+
+ticker_json = json.dumps(ticker_items, ensure_ascii=False)
+banner_json = json.dumps(banner_data)
+
+components.html(
+    f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            * {{ box-sizing: border-box; }}
+            html, body {{
+                margin: 0; padding: 0;
+                width: 100%; height: 100%;
+                overflow: hidden;
+                background: #111827;
+                font-family: Arial, sans-serif;
+            }}
+            #ticker {{
+                position: relative;
+                width: 100%; height: 100%;
+                overflow: hidden;
+                background: #111827;
+                color: white;
+                border-top: 1px solid rgba(255,255,255,.12);
+                box-shadow: 0 -5px 18px rgba(0,0,0,.35);
+            }}
+            #ticker-header {{
+                position: absolute;
+                left: 0; right: 0; top: 0;
+                height: 34px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 0 20px;
+                font-size: 11px;
+                font-weight: 900;
+                letter-spacing: .8px;
+                text-transform: uppercase;
+                color: #e5e7eb;
+                z-index: 10;
+            }}
+            #ticker-content {{
+                position: absolute;
+                left: 0; right: 0;
+                top: 34px; bottom: 0;
+                padding: 12px 22px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                opacity: 1;
+                transition: opacity .35s ease;
+            }}
+            #ticker-content.fade {{ opacity: 0; }}
+            .headline {{ width: 100%; }}
+            .headline-top {{
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin-bottom: 6px;
+            }}
+            .source {{
+                display: inline-block;
+                padding: 4px 8px;
+                border-radius: 4px;
+                background: #3b70b4;
+                color: white;
+                font-size: 9px;
+                font-weight: 900;
+                letter-spacing: .5px;
+                text-transform: uppercase;
+                white-space: nowrap;
+            }}
+            .location {{
+                color: #ff8b8b;
+                font-size: 9px;
+                font-weight: 800;
+                letter-spacing: .5px;
+                text-transform: uppercase;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }}
+            .title {{
+                color: white;
+                font-size: 15px;
+                font-weight: 800;
+                line-height: 1.35;
+            }}
+            .title a {{
+                color: white;
+                text-decoration: none;
+            }}
+            .title a:hover {{ color: #75b9f5; }}
+            .banner {{
+                width: 100%; height: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: white;
+                overflow: hidden;
+            }}
+            .banner img {{
+                display: block;
+                width: 100%;
+                height: auto;
+                max-height: 100%;
+                object-fit: contain;
+            }}
+            .banner-fallback {{
+                color: #202938;
+                font-family: Georgia, serif;
+                font-size: 26px;
+                font-weight: 700;
+                text-align: center;
+            }}
+        </style>
+    </head>
+    <body>
+        <div id="ticker">
+            <div id="ticker-header">
+                <span>🛰️ LIVE DATA SOURCES</span>
+                <span>LIVE PIN HEADLINES</span>
+            </div>
+            <div id="ticker-content"></div>
+        </div>
+        <script>
+            const headlines = {ticker_json};
+            const banner = {banner_json};
+            const DISPLAY_TIME = 5000;
+            const FADE_TIME = 350;
+            let currentIndex = 0;
+            const content = document.getElementById("ticker-content");
+
+            function renderHeadline(item) {{
+                const wrapper = document.createElement("div");
+                wrapper.className = "headline";
+                const top = document.createElement("div");
+                top.className = "headline-top";
+                const source = document.createElement("span");
+                source.className = "source";
+                source.textContent = item.source;
+                const location = document.createElement("span");
+                location.className = "location";
+                location.textContent = "📍 " + item.location;
+                top.appendChild(source);
+                top.appendChild(location);
+                const title = document.createElement("div");
+                title.className = "title";
+                const link = document.createElement("a");
+                link.href = item.url;
+                link.target = "_top";
+                link.textContent = item.title + " ↗";
+                title.appendChild(link);
+                wrapper.appendChild(top);
+                wrapper.appendChild(title);
+                return wrapper;
+            }}
+
+            function renderBanner() {{
+                const wrapper = document.createElement("div");
+                wrapper.className = "banner";
+                if (banner) {{
+                    const image = document.createElement("img");
+                    image.src = banner;
+                    image.alt = "In friendship with Air Brussels Times";
+                    wrapper.appendChild(image);
+                }} else {{
+                    const fallback = document.createElement("div");
+                    fallback.className = "banner-fallback";
+                    fallback.textContent = "In friendship with: Air Brussels Times";
+                    wrapper.appendChild(fallback);
+                }}
+                return wrapper;
+            }}
+
+            function displayCurrent() {{
+                content.classList.add("fade");
+                setTimeout(function() {{
+                    content.innerHTML = "";
+                    if (currentIndex < headlines.length) {{
+                        content.appendChild(renderHeadline(headlines[currentIndex]));
+                    }} else {{
+                        content.appendChild(renderBanner());
+                    }}
+                    content.classList.remove("fade");
+                }}, FADE_TIME);
+            }}
+
+            if (headlines.length > 0) {{
+                content.appendChild(renderHeadline(headlines[0]));
+            }} else {{
+                content.appendChild(renderBanner());
+            }}
+
+            const totalItems = headlines.length + 1;
+            setInterval(function() {{
+                currentIndex++;
+                if (currentIndex >= totalItems) currentIndex = 0;
+                displayCurrent();
+            }}, DISPLAY_TIME);
+        </script>
+    </body>
+    </html>
+    """,
+    height=190,
+    scrolling=False
 )
