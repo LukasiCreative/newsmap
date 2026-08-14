@@ -12,7 +12,6 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from bs4 import BeautifulSoup
 from streamlit_folium import st_folium
-from datetime import datetime
 
 # ================================================================
 # PAGE CONFIG
@@ -35,8 +34,6 @@ def _flatten_html(markup):
 # ================================================================
 placeholder = st.empty()
 with placeholder:
-    # Show a loading image (base64 encoded or from assets)
-    # You can replace with your own image path or base64
     st.markdown(
         """
         <div style="display:flex; justify-content:center; align-items:center; height:100vh; background:#262626;">
@@ -185,7 +182,7 @@ def _xml_local_attr(node, child_name, attr_name):
     return ""
 
 # ================================================================
-# FEED CONFIG (unchanged)
+# FEED CONFIG
 # ================================================================
 FEED_CONFIG = [
     {"source": "GDACS", "format": "XML/RSS", "feed_url": "https://www.gdacs.org/contentdata/xml/rss.xml", "site_url": "https://gdacs.org", "parser": "gdacs"},
@@ -196,7 +193,7 @@ FEED_CONFIG = [
 ]
 
 # ================================================================
-# FETCH FUNCTIONS
+# FETCH FUNCTIONS (unchanged)
 # ================================================================
 @st.cache_data(ttl=120, show_spinner=False)
 def fetch_rss(url, source_name, limit=8, only_relevant=False):
@@ -351,7 +348,7 @@ def fetch_usgs_atom(limit=12):
     return [{**article, "is_un_data": True} for article in articles]
 
 # ================================================================
-# LIVE MEDIA FEEDS – UPDATED WITH NEW SOURCES
+# LIVE MEDIA FEEDS – with new sources
 # ================================================================
 def fetch_live_media():
     all_articles = []
@@ -583,7 +580,7 @@ if BANNER_PATH.exists():
         banner_data = ""
 
 # ================================================================
-# BUILD MAP
+# BUILD MAP – ALWAYS DARK TILES
 # ================================================================
 live_pin_items = []
 for alert_idx, item in enumerate(mapped_alerts):
@@ -595,24 +592,14 @@ for alert_idx, item in enumerate(mapped_alerts):
     except (TypeError, ValueError):
         continue
 
-# --- Day/Night tile selection ---
-current_hour = datetime.now().hour
-if 6 <= current_hour < 18:
-    # Light tile
-    tile_url = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-    tile_attr = "&copy; OpenStreetMap &copy; CARTO"
-else:
-    # Dark tile
-    tile_url = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-    tile_attr = "&copy; OpenStreetMap &copy; CARTO"
-
 m = folium.Map(location=[20.0, 0.0], zoom_start=2, min_zoom=2, max_bounds=True,
                zoom_control=False, scrollWheelZoom=True, touchZoom=True)
 
+# Always use dark tiles
 folium.TileLayer(
-    tiles=tile_url,
-    attr=tile_attr,
-    name="Dynamic Tiles",
+    tiles="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    attr="&copy; OpenStreetMap &copy; CARTO",
+    name="Dark Matter",
     subdomains="abcd",
     no_wrap=True
 ).add_to(m)
@@ -689,10 +676,8 @@ if banner_article is not None:
     lon = banner_article["lon"]
     m.location = [lat, lon]
     m.options["zoom"] = 8
-    # Also add a popup for that marker? Not necessary.
-
-# --- Fit bounds if no banner ---
 else:
+    # Fit bounds to all pins (or red pins only)
     focus_pin_items = [item_tuple for item_tuple in live_pin_items if not item_tuple[1]["is_un_data"]]
     if not focus_pin_items:
         focus_pin_items = live_pin_items
