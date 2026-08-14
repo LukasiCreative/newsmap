@@ -665,7 +665,7 @@ for alert_idx, item in enumerate(mapped_alerts):
 # ================================================================
 # BANNER IMAGE
 # ================================================================
-BANNER_PATH = Path(__file__).resolve().parent / "assets" / "infriendshipwith.png"
+BANNER_PATH = Path(__file__).resolve().parent / "infriendshipwith.png"
 banner_data = ""
 if BANNER_PATH.exists():
     try:
