@@ -49,7 +49,7 @@ with placeholder:
     )
 
 # ================================================================
-# CRITICAL CSS – map fullscreen, ticker fixed overlay, language dropdown
+# CRITICAL CSS – map fullscreen, ticker fixed overlay, invisible translate
 # ================================================================
 st.markdown(
     _flatten_html("""
@@ -60,11 +60,42 @@ st.markdown(
         [data-testid="stDecoration"], [data-testid="stStatusWidget"],
         [data-testid="stAppDeployButton"], [data-testid="stHeaderActionElements"],
         div[class*="viewerBadge"], div[class*="stDeployButton"],
-        div[class*="StatusWidget"], div[class*="Toolbar"], div[class*="Decoration"],
-        .goog-te-banner-frame, #goog-gt-tt, .goog-te-balloon-frame {
+        div[class*="StatusWidget"], div[class*="Toolbar"], div[class*="Decoration"] {
             display: none !important;
         }
-        body { top: 0px !important; }
+
+        /* 100% INVISIBLE TRANSLATE: completely eliminate Google Translate banners, bars, tooltips & popups */
+        .goog-te-banner-frame,
+        .goog-te-banner-frame.skiptranslate,
+        iframe.goog-te-banner-frame,
+        #goog-gt-tt,
+        .goog-te-balloon-frame,
+        .goog-tooltip,
+        .goog-tooltip:hover,
+        .goog-text-highlight,
+        .goog-te-spinner-pos {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+        body {
+            top: 0px !important;
+            position: static !important;
+        }
+        #google_translate_element {
+            display: none !important;
+            visibility: hidden !important;
+            height: 0 !important;
+            width: 0 !important;
+            overflow: hidden !important;
+        }
+        .skiptranslate:not(#crisis-lang-picker):not(#crisis-lang-picker *) {
+            display: none !important;
+        }
 
         /* Make the whole app container fill the viewport */
         html, body, .stApp, .stAppViewContainer, .stAppViewBlockContainer,
@@ -852,7 +883,7 @@ components.html(
             }
 
             // ==========================================
-            // TRANSLATION ENGINE & FLAG SELECTOR (TOP RIGHT)
+            // SILENT TRANSLATION & TOP-RIGHT FLAG PICKER
             // ==========================================
             const languages = [
                 { code: 'en', flag: '🇬🇧', name: 'English' },
