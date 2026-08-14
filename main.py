@@ -30,19 +30,12 @@ def _flatten_html(markup):
     return re.sub(r"(?m)^[ \t]+", "", markup)
 
 # ================================================================
-# GLOBAL CSS – Map full viewport, ticker fixed overlay at bottom
+# CRITICAL CSS – map fullscreen, ticker fixed overlay at bottom
 # ================================================================
 st.markdown(
     _flatten_html("""
     <style>
-        /* --- Remove all margins, scroll, and Streamlit chrome --- */
-        html, body {
-            margin: 0 !important;
-            padding: 0 !important;
-            height: 100% !important;
-            overflow: hidden !important;
-            background: #262626 !important;
-        }
+        /* Hide all Streamlit chrome */
         #MainMenu, footer, header, [data-testid="stHeader"],
         [data-testid="stToolbar"], [data-testid="stToolbarActions"],
         [data-testid="stDecoration"], [data-testid="stStatusWidget"],
@@ -52,19 +45,18 @@ st.markdown(
             display: none !important;
         }
 
-        /* --- Make the app container fill the viewport --- */
-        .stApp, .stAppViewContainer, .stAppViewBlockContainer,
+        /* Make the whole app container fill the viewport */
+        html, body, .stApp, .stAppViewContainer, .stAppViewBlockContainer,
         .main, .main .block-container {
-            padding: 0 !important;
             margin: 0 !important;
-            max-width: 100% !important;
+            padding: 0 !important;
             width: 100% !important;
-            height: 100vh !important;       /* full viewport height */
-            background: #262626 !important;
+            height: 100vh !important;
             overflow: hidden !important;
+            background: #262626 !important;
         }
 
-        /* --- The map container must also be full height --- */
+        /* The map container must also fill the viewport */
         div[data-testid="stElementContainer"]:has(iframe.leaflet-container) {
             height: 100vh !important;
             width: 100% !important;
@@ -77,20 +69,19 @@ st.markdown(
             display: block !important;
         }
 
-        /* --- The ticker component: fixed overlay at bottom --- */
+        /* The ticker component – fixed overlay at bottom */
         div[data-testid="stCustomComponentV1"] {
             position: fixed !important;
             bottom: 0 !important;
             left: 0 !important;
             width: 100% !important;
-            height: 150px !important;          /* adjust as needed */
-            z-index: 9999 !important;          /* above everything */
+            height: 140px !important;          /* adjust if needed */
+            z-index: 9999 !important;          /* on top of everything */
             pointer-events: auto !important;
             border: none !important;
             box-shadow: 0 -5px 18px rgba(0,0,0,0.6) !important;
             background: transparent !important;
         }
-        /* Ensure the iframe inside fills the container */
         div[data-testid="stCustomComponentV1"] iframe {
             width: 100% !important;
             height: 100% !important;
@@ -182,7 +173,7 @@ FEED_CONFIG = [
 ]
 
 # ================================================================
-# RSS / ATOM (unchanged)
+# FETCH FUNCTIONS (unchanged – only feed parsing, no layout)
 # ================================================================
 @st.cache_data(ttl=120, show_spinner=False)
 def fetch_rss(url, source_name, limit=8, only_relevant=False):
@@ -236,9 +227,6 @@ def fetch_rss(url, source_name, limit=8, only_relevant=False):
         pass
     return articles
 
-# ================================================================
-# RELIEFWEB (unchanged)
-# ================================================================
 @st.cache_data(ttl=120, show_spinner=False)
 def fetch_reliefweb(limit=15):
     articles = []
@@ -291,9 +279,6 @@ def fetch_reliefweb(limit=15):
         pass
     return articles
 
-# ================================================================
-# USGS GEOJSON (unchanged)
-# ================================================================
 @st.cache_data(ttl=60, show_spinner=False)
 def fetch_usgs_geojson(limit=20):
     articles = []
@@ -337,17 +322,11 @@ def fetch_usgs_geojson(limit=20):
         pass
     return articles
 
-# ================================================================
-# USGS ATOM (unchanged)
-# ================================================================
 @st.cache_data(ttl=60, show_spinner=False)
 def fetch_usgs_atom(limit=12):
     articles = fetch_rss("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.atom", "USGS", limit=limit, only_relevant=False)
     return [{**article, "is_un_data": True} for article in articles]
 
-# ================================================================
-# LIVE MEDIA (unchanged)
-# ================================================================
 def fetch_live_media():
     all_articles = []
     feeds = [
@@ -370,7 +349,7 @@ def fetch_live_media():
     return unique
 
 # ================================================================
-# FETCH DATA (unchanged)
+# FETCH AND DEDUPLICATE
 # ================================================================
 feed_articles = []
 feed_articles.extend(fetch_rss(FEED_CONFIG[0]["feed_url"], "GDACS", limit=8))
@@ -380,9 +359,6 @@ feed_articles.extend(fetch_usgs_geojson(limit=20))
 feed_articles.extend(fetch_usgs_atom(limit=12))
 feed_articles.extend(fetch_live_media())
 
-# ================================================================
-# DEDUPLICATE (unchanged)
-# ================================================================
 seen = set()
 mapped_alerts = []
 for article in feed_articles:
@@ -514,7 +490,7 @@ if requested_article is not None:
     st.stop()
 
 # ================================================================
-# TICKER DATA (unchanged)
+# TICKER DATA (red pins only)
 # ================================================================
 ticker_items = []
 for alert_idx, item in enumerate(mapped_alerts):
@@ -672,19 +648,19 @@ if live_pin_items:
     m.get_root().html.add_child(folium.Element(resize_fix_script))
 
 # ================================================================
-# RENDER: MAP FIRST, THEN TICKER OVERLAY
+# RENDER ORDER: MAP FIRST, THEN TICKER OVERLAY
 # ================================================================
 
-# 1. Map – full viewport
+# 1. Render the map (full viewport)
 st_folium(
     m,
     width="100%",
-    height=600,          # CSS overrides to 100vh
+    height=600,          # will be overridden by CSS to 100vh
     returned_objects=[],
     key="tactical_map_flush_v31"
 )
 
-# 2. Ticker – fixed overlay at bottom (SLOWED DOWN)
+# 2. Render the ticker as a fixed overlay (bottom)
 ticker_json = json.dumps(ticker_items, ensure_ascii=False)
 banner_json = json.dumps(banner_data)
 
@@ -817,7 +793,7 @@ components.html(
         <script>
             const headlines = {ticker_json};
             const banner = {banner_json};
-            const DISPLAY_TIME = 8000;   // 8 seconds – change to 10000 or 12000 for slower
+            const DISPLAY_TIME = 8000;   // 8 seconds per item – increase for slower
             const FADE_TIME = 400;
             let currentIndex = 0;
             const content = document.getElementById("ticker-content");
@@ -893,6 +869,6 @@ components.html(
     </body>
     </html>
     """,
-    height=150,          # height of ticker overlay
+    height=140,          # ticker height – adjust if needed
     scrolling=False
 )
