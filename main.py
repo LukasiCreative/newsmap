@@ -12,6 +12,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from bs4 import BeautifulSoup
 from streamlit_folium import st_folium
+from datetime import datetime
 
 # ================================================================
 # PAGE CONFIG
@@ -28,6 +29,26 @@ st.set_page_config(
 # ================================================================
 def _flatten_html(markup):
     return re.sub(r"(?m)^[ \t]+", "", markup)
+
+# ================================================================
+# LOADING PLACEHOLDER
+# ================================================================
+placeholder = st.empty()
+with placeholder:
+    # Show a loading image (base64 encoded or from assets)
+    # You can replace with your own image path or base64
+    st.markdown(
+        """
+        <div style="display:flex; justify-content:center; align-items:center; height:100vh; background:#262626;">
+            <div style="text-align:center; color:white; font-family:sans-serif;">
+                <div style="font-size:48px;">🛰️</div>
+                <h1>Loading Crisis Data...</h1>
+                <p>Please wait while we fetch live intelligence.</p>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 # ================================================================
 # CRITICAL CSS – map fullscreen, ticker fixed overlay at bottom
@@ -75,7 +96,9 @@ st.markdown(
             bottom: 0 !important;
             left: 0 !important;
             width: 100% !important;
-            height: 140px !important;
+            height: 12vh !important;          /* responsive height */
+            max-height: 150px !important;
+            min-height: 80px !important;
             z-index: 9999 !important;
             pointer-events: auto !important;
             border: none !important;
@@ -340,7 +363,7 @@ def fetch_live_media():
         ("THE GUARDIAN", "https://www.theguardian.com/world/rss"),
         ("FRANCE 24", "https://www.france24.com/en/rss"),
 
-        # New sources (all RSS feeds)
+        # New sources
         ("SWEDISH ARMED FORCES", "https://www.mynewsdesk.com/forsvarsmakten/latest_news?format=rss"),
         ("CRISIS GROUP", "https://www.crisisgroup.org/rss.xml"),
         ("RADIO FREE EUROPE", "https://www.rferl.org/rss"),
@@ -390,7 +413,24 @@ for article in feed_articles:
     mapped_alerts.append(article)
 
 # ================================================================
-# ARTICLE VIEW
+# REMOVE LOADING PLACEHOLDER
+# ================================================================
+placeholder.empty()
+
+# ================================================================
+# CHECK BANNER PARAMETER
+# ================================================================
+banner_idx = st.query_params.get("banner")
+if banner_idx is not None:
+    try:
+        banner_idx = int(banner_idx)
+    except:
+        banner_idx = None
+else:
+    banner_idx = None
+
+# ================================================================
+# ARTICLE VIEW (if user clicks link in popup)
 # ================================================================
 requested_article = st.query_params.get("article")
 if requested_article is not None:
@@ -527,7 +567,7 @@ for alert_idx, item in enumerate(mapped_alerts):
         "title": title_text,
         "source": source_text,
         "location": location_text,
-        "url": f"?article={alert_idx}"
+        "url": f"?article={alert_idx}"   # for article detail view
     })
 
 # ================================================================
@@ -555,13 +595,24 @@ for alert_idx, item in enumerate(mapped_alerts):
     except (TypeError, ValueError):
         continue
 
+# --- Day/Night tile selection ---
+current_hour = datetime.now().hour
+if 6 <= current_hour < 18:
+    # Light tile
+    tile_url = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+    tile_attr = "&copy; OpenStreetMap &copy; CARTO"
+else:
+    # Dark tile
+    tile_url = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+    tile_attr = "&copy; OpenStreetMap &copy; CARTO"
+
 m = folium.Map(location=[20.0, 0.0], zoom_start=2, min_zoom=2, max_bounds=True,
                zoom_control=False, scrollWheelZoom=True, touchZoom=True)
 
 folium.TileLayer(
-    tiles="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-    attr="&copy; OpenStreetMap &copy; CARTO",
-    name="Dark Matter",
+    tiles=tile_url,
+    attr=tile_attr,
+    name="Dynamic Tiles",
     subdomains="abcd",
     no_wrap=True
 ).add_to(m)
@@ -575,7 +626,12 @@ m.get_root().html.add_child(
     """)
 )
 
+# --- Add markers with click handler that sets banner ---
 marker_click_scripts = []
+banner_article = None
+if banner_idx is not None and 0 <= banner_idx < len(mapped_alerts):
+    banner_article = mapped_alerts[banner_idx]
+
 for alert_idx, item, lat, lon in live_pin_items:
     if item["is_un_data"]:
         marker_color = "#3182ce"
@@ -591,7 +647,8 @@ for alert_idx, item, lat, lon in live_pin_items:
         '</span><br>'
         f'<a href="?article={alert_idx}" target="_top" style="text-decoration:none;font-weight:700;color:{marker_color};display:inline-block;margin-top:4px;">'
         f'{html.escape(str(item["title"]))} ↗'
-        '</a></div>'
+        '</a>'
+        '</div>'
     )
 
     marker = folium.CircleMarker(
@@ -604,11 +661,19 @@ for alert_idx, item, lat, lon in live_pin_items:
         fill_opacity=0.75
     )
     marker.add_to(m)
-    marker_click_scripts.append(
-        f"{marker.get_name()}.on('click', function(e) {{"
-        f"{m.get_name()}.flyTo(e.latlng, Math.max({m.get_name()}.getZoom(), 6), {{duration:0.75}});"
-        f"}});"
-    )
+
+    # Click event: fly to and then set banner parameter (reload)
+    click_js = f"""
+    {marker.get_name()}.on('click', function(e) {{
+        // Fly to the marker
+        {m.get_name()}.flyTo(e.latlng, Math.max({m.get_name()}.getZoom(), 8), {{duration:0.75}});
+        // After a short delay, reload with banner parameter
+        setTimeout(function() {{
+            window.location.href = window.location.pathname + '?banner={alert_idx}';
+        }}, 800);
+    }});
+    """
+    marker_click_scripts.append(click_js)
 
 if marker_click_scripts:
     deferred_click_script = (
@@ -618,36 +683,52 @@ if marker_click_scripts:
     )
     m.get_root().html.add_child(folium.Element("<script>" + deferred_click_script + "</script>"))
 
-focus_pin_items = [item_tuple for item_tuple in live_pin_items if not item_tuple[1]["is_un_data"]]
-if not focus_pin_items:
-    focus_pin_items = live_pin_items
+# --- Set map view if banner is set ---
+if banner_article is not None:
+    lat = banner_article["lat"]
+    lon = banner_article["lon"]
+    m.location = [lat, lon]
+    m.options["zoom"] = 8
+    # Also add a popup for that marker? Not necessary.
 
-if live_pin_items:
-    lats = [lat for (_, _, lat, _) in focus_pin_items]
-    lons = [lon for (_, _, _, lon) in focus_pin_items]
-    if len(focus_pin_items) == 1:
-        m.location = [lats[0], lons[0]]
-        m.options["zoom"] = 8
-    else:
-        south = min(lats)
-        north = max(lats)
-        west = min(lons)
-        east = max(lons)
-        lat_span = north - south
-        lon_span = east - west
-        lat_pad = max(1.0, lat_span * 0.08)
-        lon_pad = max(1.5, lon_span * 0.08)
-        south = max(-90.0, south - lat_pad)
-        north = min(90.0, north + lat_pad)
-        west_bound = max(-180.0, west - lon_pad)
-        east_bound = min(180.0, east + lon_pad)
-        m.fit_bounds([[south, west_bound], [north, east_bound]], padding=(10, 10), max_zoom=10)
+# --- Fit bounds if no banner ---
+else:
+    focus_pin_items = [item_tuple for item_tuple in live_pin_items if not item_tuple[1]["is_un_data"]]
+    if not focus_pin_items:
+        focus_pin_items = live_pin_items
 
+    if live_pin_items:
+        lats = [lat for (_, _, lat, _) in focus_pin_items]
+        lons = [lon for (_, _, _, lon) in focus_pin_items]
+        if len(focus_pin_items) == 1:
+            m.location = [lats[0], lons[0]]
+            m.options["zoom"] = 8
+        else:
+            south = min(lats)
+            north = max(lats)
+            west = min(lons)
+            east = max(lons)
+            lat_span = north - south
+            lon_span = east - west
+            lat_pad = max(1.0, lat_span * 0.08)
+            lon_pad = max(1.5, lon_span * 0.08)
+            south = max(-90.0, south - lat_pad)
+            north = min(90.0, north + lat_pad)
+            west_bound = max(-180.0, west - lon_pad)
+            east_bound = min(180.0, east + lon_pad)
+            m.fit_bounds([[south, west_bound], [north, east_bound]], padding=(10, 10), max_zoom=10)
+
+# --- Map resize fix ---
 if live_pin_items:
-    if len(focus_pin_items) == 1:
-        reapply_view_js = f"{m.get_name()}.setView([{lats[0]}, {lons[0]}], 8);"
+    if banner_article is not None:
+        reapply_view_js = f"{m.get_name()}.setView([{banner_article['lat']}, {banner_article['lon']}], 8);"
     else:
-        reapply_view_js = f"{m.get_name()}.fitBounds([[{south},{west_bound}],[{north},{east_bound}]],{{padding:[10,10],maxZoom:10}});"
+        if len(focus_pin_items) == 1:
+            lats = [lat for (_, _, lat, _) in focus_pin_items]
+            lons = [lon for (_, _, _, lon) in focus_pin_items]
+            reapply_view_js = f"{m.get_name()}.setView([{lats[0]}, {lons[0]}], 8);"
+        else:
+            reapply_view_js = f"{m.get_name()}.fitBounds([[{south},{west_bound}],[{north},{east_bound}]],{{padding:[10,10],maxZoom:10}});"
     resize_fix_script = (
         "<script>"
         "function __fixMapView(){try{"
@@ -669,7 +750,7 @@ if live_pin_items:
     m.get_root().html.add_child(folium.Element(resize_fix_script))
 
 # ================================================================
-# RENDER ORDER: MAP FIRST, TICKER OVERLAY AT BOTTOM
+# RENDER: MAP FIRST, TICKER OVERLAY AT BOTTOM
 # ================================================================
 
 # 1. Map – full viewport
@@ -681,9 +762,19 @@ st_folium(
     key="tactical_map_flush_v31"
 )
 
-# 2. Ticker – fixed overlay at bottom (SLOWED DOWN: 8 seconds)
+# 2. Ticker – fixed overlay at bottom, with banner support
 ticker_json = json.dumps(ticker_items, ensure_ascii=False)
 banner_json = json.dumps(banner_data)
+
+# If banner_idx is set, we need to pass that article to the ticker to display first
+banner_article_json = None
+if banner_idx is not None and 0 <= banner_idx < len(mapped_alerts):
+    banner_article_json = json.dumps({
+        "title": clean_text(mapped_alerts[banner_idx]["title"]),
+        "source": clean_text(mapped_alerts[banner_idx]["source"]),
+        "location": clean_text(mapped_alerts[banner_idx]["location_name"]),
+        "url": f"?article={banner_idx}"
+    })
 
 components.html(
     f"""
@@ -814,7 +905,8 @@ components.html(
         <script>
             const headlines = {ticker_json};
             const banner = {banner_json};
-            const DISPLAY_TIME = 8000;   // 8 seconds per item – change to 10000 or 12000 for slower
+            const bannerArticle = {banner_article_json if banner_article_json is not None else 'null'};
+            const DISPLAY_TIME = 7000;   // 7 seconds – change to 10000 or 12000 for slower
             const FADE_TIME = 400;
             let currentIndex = 0;
             const content = document.getElementById("ticker-content");
@@ -874,22 +966,46 @@ components.html(
                 }}, FADE_TIME);
             }}
 
-            if (headlines.length > 0) {{
-                content.appendChild(renderHeadline(headlines[0]));
+            // Determine starting point
+            let startIndex = 0;
+            if (bannerArticle) {{
+                // Show banner article first for DISPLAY_TIME, then move to normal rotation
+                content.appendChild(renderHeadline(bannerArticle));
+                // After DISPLAY_TIME, start normal cycle
+                setTimeout(function() {{
+                    currentIndex = 0;  // start from first headline
+                    displayCurrent();
+                    // Start the interval for normal rotation
+                    setInterval(function() {{
+                        currentIndex++;
+                        if (currentIndex >= headlines.length + 1) {{ // +1 for banner at end
+                            currentIndex = 0;
+                        }}
+                        displayCurrent();
+                    }}, DISPLAY_TIME);
+                }}, DISPLAY_TIME);
             }} else {{
-                content.appendChild(renderBanner());
+                // Normal start: first headline or banner
+                if (headlines.length > 0) {{
+                    content.appendChild(renderHeadline(headlines[0]));
+                    currentIndex = 0;
+                }} else {{
+                    content.appendChild(renderBanner());
+                    currentIndex = headlines.length; // will show banner after headlines
+                }}
+                // Start interval
+                setInterval(function() {{
+                    currentIndex++;
+                    if (currentIndex >= headlines.length + 1) {{
+                        currentIndex = 0;
+                    }}
+                    displayCurrent();
+                }}, DISPLAY_TIME);
             }}
-
-            const totalItems = headlines.length + 1;
-            setInterval(function() {{
-                currentIndex++;
-                if (currentIndex >= totalItems) currentIndex = 0;
-                displayCurrent();
-            }}, DISPLAY_TIME);
         </script>
     </body>
     </html>
     """,
-    height=140,
+    height=140,          # will be overridden by CSS to 12vh
     scrolling=False
 )
