@@ -98,12 +98,12 @@ st.markdown(
             right: 0 !important;
             bottom: 0 !important;
             width: 100% !important;
-            height: clamp(74px, 13dvh, 130px) !important;
+            height: clamp(130px, 24dvh, 200px) !important;
             padding-bottom: env(safe-area-inset-bottom, 0px) !important;
             margin: 0 !important;
             z-index: 2147483000 !important;
             pointer-events: auto !important;
-            background: transparent !important;
+            background: #111827 !important;
             box-shadow: 0 -5px 18px rgba(0,0,0,0.6) !important;
         }
         #news-ticker-overlay iframe {
@@ -120,12 +120,12 @@ st.markdown(
             bottom: 0 !important;
             left: 0 !important;
             width: 100% !important;
-            height: clamp(74px, 13dvh, 130px) !important;
+            height: clamp(130px, 24dvh, 200px) !important;
             padding-bottom: env(safe-area-inset-bottom, 0px) !important;
             z-index: 2147483000 !important;
             pointer-events: auto !important;
             border: none !important;
-            background: transparent !important;
+            background: #111827 !important;
         }
         div[data-testid="stCustomComponentV1"]:not(:has(iframe.leaflet-container)) iframe {
             width: 100% !important;
@@ -639,8 +639,7 @@ m.get_root().html.add_child(
     """)
 )
 
-# --- Add markers with click handler: fly + set banner after delay ---
-marker_click_scripts = []
+# --- Add markers; clicking a pin pushes its headline into the ticker ---
 banner_article = None
 if banner_idx is not None and 0 <= banner_idx < len(mapped_alerts):
     banner_article = mapped_alerts[banner_idx]
@@ -659,7 +658,11 @@ for alert_idx, item, lat, lon in live_pin_items:
         f'<span style="color:#718096;font-weight:800;font-size:10px;text-transform:uppercase;">'
         f'📍 {html.escape(str(item["location_name"]))} — {html.escape(str(item["source"]))}'
         '</span><br>'
-        f'<a href="?article={alert_idx}" target="_blank" style="text-decoration:none;font-weight:700;color:{marker_color};display:inline-block;margin-top:4px;">'
+        f'<a href="?article={alert_idx}" target="_top" '
+        f"onclick=\"event.preventDefault();var b=window.top.location.origin+window.top.location.pathname;"
+        f"var u=b+'?article={alert_idx}';var w=window.open(u,'_blank');"
+        f"if(!w){{try{{window.top.location.href=u;}}catch(err){{window.location.href=u;}}}}return false;\" "
+        f'style="text-decoration:none;font-weight:700;color:{marker_color};display:inline-block;margin-top:4px;cursor:pointer;">'
         f'{html.escape(str(item["title"]))} ↗'
         '</a>'
         '</div>'
@@ -675,27 +678,6 @@ for alert_idx, item, lat, lon in live_pin_items:
         fill_opacity=0.75
     )
     marker.add_to(m)
-
-    # Click event: fly to marker, then after 3s reload with banner parameter
-    click_js = f"""
-    {marker.get_name()}.on('click', function(e) {{
-        // Fly to the marker
-        {m.get_name()}.flyTo(e.latlng, Math.max({m.get_name()}.getZoom(), 8), {{duration:0.75}});
-        // After a delay (3 seconds), reload with banner parameter to show this article in ticker
-        setTimeout(function() {{
-            window.location.href = window.location.pathname + '?banner={alert_idx}';
-        }}, 3000);
-    }});
-    """
-    marker_click_scripts.append(click_js)
-
-if marker_click_scripts:
-    deferred_click_script = (
-        "document.addEventListener('DOMContentLoaded',function(){"
-        + "".join(marker_click_scripts)
-        + "});"
-    )
-    m.get_root().html.add_child(folium.Element("<script>" + deferred_click_script + "</script>"))
 
 # --- Set map view if banner is set ---
 if banner_article is not None:
@@ -774,6 +756,15 @@ st_folium(
 
 # Ticker – fixed overlay at bottom
 ticker_json = json.dumps(ticker_items, ensure_ascii=False)
+pin_lookup_json = json.dumps({
+    str(alert_idx): {
+        "title": clean_text(str(item.get("title", ""))),
+        "source": clean_text(str(item.get("source", ""))),
+        "location": clean_text(str(item.get("location_name", ""))),
+        "url": f"?article={alert_idx}",
+    }
+    for alert_idx, item in enumerate(mapped_alerts)
+}, ensure_ascii=False)
 banner_json = json.dumps(banner_data)
 
 banner_article_json = None
@@ -797,7 +788,7 @@ components.html(
                 margin: 0; padding: 0;
                 width: 100%; height: 100%;
                 overflow: hidden;
-                background: transparent;
+                background: #111827;
                 font-family: Arial, sans-serif;
             }}
             #ticker {{
@@ -806,11 +797,10 @@ components.html(
                 width: 100%;
                 height: 100%;
                 overflow: hidden;
-                background: rgba(17, 24, 39, 0.92);
+                background: #111827;
                 color: white;
                 border-top: 1px solid rgba(255,255,255,.15);
                 box-shadow: 0 -5px 18px rgba(0,0,0,0.5);
-                backdrop-filter: blur(2px);
             }}
             #ticker-header {{
                 position: absolute;
@@ -831,10 +821,11 @@ components.html(
                 position: absolute;
                 left: 0; right: 0;
                 top: 28px; bottom: 0;
-                padding: 6px 16px;
+                padding: 8px 16px 12px;
                 display: flex;
-                align-items: center;
+                align-items: flex-start;
                 justify-content: center;
+                overflow: hidden;
                 opacity: 1;
                 transition: opacity .4s ease;
             }}
@@ -870,14 +861,20 @@ components.html(
             }}
             .title {{
                 color: white;
-                font-size: 13px;
+                font-size: 15px;
                 font-weight: 800;
-                line-height: 1.3;
+                line-height: 1.35;
             }}
             .title a {{
                 color: white;
                 text-decoration: none;
+                cursor: pointer;
+                display: -webkit-box;
+                -webkit-line-clamp: 4;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
             }}
+            .title a:active {{ color: #75b9f5; }}
             .title a:hover {{ color: #75b9f5; }}
             .banner {{
                 width: 100%; height: 100%;
@@ -935,13 +932,96 @@ components.html(
                 }} catch (e) {{}}
             }})();
 
+            // Build/open URLs against the top-level app window, not the iframe.
+            function appBase() {{
+                try {{
+                    return window.top.location.origin + window.top.location.pathname;
+                }} catch (e) {{
+                    return window.location.origin + window.location.pathname;
+                }}
+            }}
+
+            function appUrl(query) {{
+                return appBase() + query;
+            }}
+
+            // Streamlit sandboxes component iframes (no top navigation), so the
+            // article opens in a new tab, falling back to in-place navigation.
+            function openInApp(query) {{
+                const target = appUrl(query);
+                const opened = window.open(target, "_blank");
+                if (!opened) {{
+                    try {{
+                        window.top.location.href = target;
+                    }} catch (e) {{
+                        window.location.href = target;
+                    }}
+                }}
+            }}
+
             const headlines = {ticker_json};
+            const pinLookup = {pin_lookup_json};
             const banner = {banner_json};
             const bannerArticle = {banner_article_json if banner_article_json is not None else 'null'};
             const DISPLAY_TIME = 7000;   // 7 seconds per item
             const FADE_TIME = 400;
             let currentIndex = 0;
+            let holdUntil = 0;   // pauses rotation while a clicked pin is shown
             const content = document.getElementById("ticker-content");
+
+            // A pin click on the map pushes its headline straight into the ticker.
+            function showPinHeadline(index) {{
+                const item = pinLookup[String(index)];
+                if (!item) return;
+                holdUntil = Date.now() + 15000;
+                content.classList.remove("fade");
+                content.innerHTML = "";
+                content.appendChild(renderHeadline(item));
+            }}
+
+            function onPinMessage(event) {{
+                const data = event && event.data;
+                if (data && data.crisisTicker) showPinHeadline(data.index);
+            }}
+
+            window.addEventListener("message", onPinMessage);
+            try {{
+                if (window.top !== window) window.top.addEventListener("message", onPinMessage);
+            }} catch (e) {{}}
+
+            // The map lives in a sibling iframe: poll it for an open popup so a
+            // pin click shows that headline down here.
+            let lastPopupIndex = null;
+            function openPopupIndex() {{
+                let frames;
+                try {{
+                    frames = window.top.frames;
+                }} catch (e) {{
+                    return null;
+                }}
+                for (let i = 0; i < frames.length; i++) {{
+                    let link;
+                    try {{
+                        link = frames[i].document.querySelector(
+                            '.leaflet-popup-content a[href^="?article="]'
+                        );
+                    }} catch (e) {{
+                        continue;
+                    }}
+                    if (link) {{
+                        const idx = parseInt(link.getAttribute("href").split("=")[1], 10);
+                        if (!isNaN(idx)) return idx;
+                    }}
+                }}
+                return null;
+            }}
+
+            setInterval(function () {{
+                const idx = openPopupIndex();
+                if (idx === lastPopupIndex) return;
+                lastPopupIndex = idx;
+                if (idx !== null) showPinHeadline(idx);
+            }}, 400);
 
             function renderHeadline(item) {{
                 const wrapper = document.createElement("div");
@@ -959,9 +1039,14 @@ components.html(
                 const title = document.createElement("div");
                 title.className = "title";
                 const link = document.createElement("a");
-                link.href = item.url;
-                link.target = "_top";
+                // The iframe has no usable base URL, so resolve against the app window.
+                link.href = appUrl(item.url);
+                link.target = "_blank";
                 link.textContent = item.title + " ↗";
+                link.addEventListener("click", function (event) {{
+                    event.preventDefault();
+                    openInApp(item.url);
+                }});
                 title.appendChild(link);
                 wrapper.appendChild(top);
                 wrapper.appendChild(title);
@@ -986,6 +1071,7 @@ components.html(
             }}
 
             function displayCurrent() {{
+                if (Date.now() < holdUntil) return;
                 content.classList.add("fade");
                 setTimeout(function() {{
                     content.innerHTML = "";
@@ -1032,6 +1118,6 @@ components.html(
     </body>
     </html>
     """,
-    height=130,
+    height=200,
     scrolling=False
 )
