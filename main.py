@@ -63,20 +63,24 @@ st.markdown(
             display: none !important;
         }
 
-        /* Make the whole app container fill the viewport */
+        /* Make the whole app container fill the viewport (dvh accounts for mobile browser chrome) */
         html, body, .stApp, .stAppViewContainer, .stAppViewBlockContainer,
         .main, .main .block-container {
             margin: 0 !important;
             padding: 0 !important;
             width: 100% !important;
             height: 100vh !important;
+            height: 100dvh !important;
             overflow: hidden !important;
             background: #262626 !important;
+            transform: none !important;
+            filter: none !important;
         }
 
         /* The map container must also fill the viewport */
         div[data-testid="stElementContainer"]:has(iframe.leaflet-container) {
             height: 100vh !important;
+            height: 100dvh !important;
             width: 100% !important;
             padding: 0 !important;
             margin: 0 !important;
@@ -87,25 +91,53 @@ st.markdown(
             display: block !important;
         }
 
-        /* The ticker component – fixed overlay at bottom */
-        div[data-testid="stCustomComponentV1"] {
+        /* Ticker layer: pinned to the bottom edge of the app window, above the map */
+        #news-ticker-overlay {
+            position: fixed !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            width: 100% !important;
+            height: clamp(74px, 13dvh, 130px) !important;
+            padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+            margin: 0 !important;
+            z-index: 2147483000 !important;
+            pointer-events: auto !important;
+            background: transparent !important;
+            box-shadow: 0 -5px 18px rgba(0,0,0,0.6) !important;
+        }
+        #news-ticker-overlay iframe {
+            width: 100% !important;
+            height: 100% !important;
+            border: none !important;
+            display: block !important;
+            background: transparent !important;
+        }
+
+        /* Fallback styling while the ticker iframe is still in the Streamlit flow */
+        div[data-testid="stCustomComponentV1"]:not(:has(iframe.leaflet-container)) {
             position: fixed !important;
             bottom: 0 !important;
             left: 0 !important;
             width: 100% !important;
-            height: 12vh !important;
-            max-height: 150px !important;
-            min-height: 80px !important;
-            z-index: 9999 !important;
+            height: clamp(74px, 13dvh, 130px) !important;
+            padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+            z-index: 2147483000 !important;
             pointer-events: auto !important;
             border: none !important;
-            box-shadow: 0 -5px 18px rgba(0,0,0,0.6) !important;
             background: transparent !important;
         }
-        div[data-testid="stCustomComponentV1"] iframe {
+        div[data-testid="stCustomComponentV1"]:not(:has(iframe.leaflet-container)) iframe {
             width: 100% !important;
             height: 100% !important;
             border: none !important;
+        }
+
+        /* Map component fills the window */
+        div[data-testid="stCustomComponentV1"]:has(iframe.leaflet-container) {
+            height: 100vh !important;
+            height: 100dvh !important;
+            width: 100% !important;
         }
     </style>
     """),
@@ -769,7 +801,8 @@ components.html(
                 font-family: Arial, sans-serif;
             }}
             #ticker {{
-                position: relative;
+                position: absolute;
+                inset: 0;
                 width: 100%;
                 height: 100%;
                 overflow: hidden;
@@ -880,6 +913,28 @@ components.html(
             <div id="ticker-content"></div>
         </div>
         <script>
+            // Lift this iframe out of the Streamlit page flow and pin it to the
+            // bottom of the app window, as a layer on top of the map.
+            (function pinToAppBottom() {{
+                try {{
+                    const frame = window.frameElement;
+                    if (!frame) return;
+                    const doc = frame.ownerDocument;
+                    let layer = doc.getElementById("news-ticker-overlay");
+                    if (!layer) {{
+                        layer = doc.createElement("div");
+                        layer.id = "news-ticker-overlay";
+                        doc.body.appendChild(layer);
+                    }}
+                    frame.setAttribute("scrolling", "no");
+                    frame.style.cssText = "width:100%;height:100%;border:0;display:block;background:transparent;";
+                    if (frame.parentElement !== layer) {{
+                        layer.innerHTML = "";
+                        layer.appendChild(frame);
+                    }}
+                }} catch (e) {{}}
+            }})();
+
             const headlines = {ticker_json};
             const banner = {banner_json};
             const bannerArticle = {banner_article_json if banner_article_json is not None else 'null'};
@@ -977,6 +1032,6 @@ components.html(
     </body>
     </html>
     """,
-    height=140,
+    height=130,
     scrolling=False
 )
