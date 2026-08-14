@@ -9,11 +9,10 @@ import os
 import time
 import base64
 import xml.etree.ElementTree as ET
-import concurrent.futures
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from bs4 import BeautifulSoup
 from streamlit_folium import st_folium
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # ================================================================
 # PAGE CONFIG
@@ -295,10 +294,162 @@ FEED_CONFIG = [
 ]
 
 # ================================================================
-# FAST PARALLEL LIVE MEDIA FETCH
+# WORKER FETCH FUNCTIONS (Plain Python functions called in threads)
 # ================================================================
-def fetch_live_media():
-    feeds = [
+def fetch_rss(url, source_name, limit=8, only_relevant=False):
+    articles = []
+    try:
+        response = requests.get(url, headers=REQUEST_HEADERS, timeout=6)
+        response.raise_for_status()
+        root = ET.fromstring(response.content)
+        items = list(root.findall(".//item"))
+        if not items:
+            items = [node for node in root.iter() if node.tag.rsplit("}", 1)[-1].lower() == "entry"]
+        for item in items:
+            title = _xml_local_text(item, "title")
+            description = _xml_local_text(item, "description", "summary", "content")
+            link = _xml_local_text(item, "link")
+            if not link:
+                link = _xml_local_attr(item, "link", "href")
+            if not title or not link:
+                continue
+            if only_relevant and not relevant(title, description):
+                continue
+            lat = lon = None
+            for node in item.iter():
+                local = node.tag.rsplit("}", 1)[-1].lower()
+                if local in {"point", "where"} and node.text:
+                    parts = node.text.replace(",", " ").split()
+                    if len(parts) >= 2:
+                        lat = _safe_float(parts[0])
+                        lon = _safe_float(parts[1])
+                        break
+                if local in {"lat", "latitude"}:
+                    lat = _safe_float(node.text)
+                if local in {"long", "lon", "longitude"}:
+                    lon = _safe_float(node.text)
+            location_name, coords = find_location(title, description)
+            if lat is None or lon is None:
+                lat, lon = coords
+            articles.append({
+                "title": title,
+                "link": link,
+                "location_name": location_name,
+                "lat": float(lat),
+                "lon": float(lon),
+                "source": source_name,
+                "summary": description[:190] if description else "Open original source for details.",
+                "is_un_data": source_name.upper().startswith("GDACS"),
+            })
+            if len(articles) >= limit:
+                break
+    except Exception:
+        pass
+    return articles
+
+def fetch_reliefweb(limit=15):
+    articles = []
+    appname = os.getenv("RELIEFWEB_APPNAME", "crisis-command-streamlit")
+    url = "https://api.reliefweb.int/v2/reports"
+    payload = {
+        "limit": limit,
+        "sort": ["date:desc"],
+        "preset": "latest",
+        "query": {"value": "war OR conflict OR attack OR explosion OR military OR missile"},
+        "fields": {"include": ["title", "url", "primary_country", "source", "date"]}
+    }
+    try:
+        response = requests.post(url, params={"appname": appname}, json=payload,
+                                 headers={**REQUEST_HEADERS, "Content-Type": "application/json"}, timeout=6)
+        response.raise_for_status()
+        for item in response.json().get("data", []):
+            fields = item.get("fields", {})
+            title = clean_text(fields.get("title", ""))
+            if not title:
+                continue
+            countries = fields.get("primary_country") or {}
+            country_name = countries.get("name") if isinstance(countries, dict) else None
+            location = countries.get("location") if isinstance(countries, dict) else {}
+            lat = _safe_float(location.get("lat")) if isinstance(location, dict) else None
+            lon = _safe_float(location.get("lon")) if isinstance(location, dict) else None
+            if lat is None or lon is None:
+                if country_name in GEO_DATABASE:
+                    lat, lon = GEO_DATABASE[country_name]
+                else:
+                    lat, lon = 20.0, 0.0
+            source = fields.get("source") or {}
+            source_name = source.get("shortname", "RELIEFWEB") if isinstance(source, dict) else "RELIEFWEB"
+            date_value = fields.get("date") or {}
+            date_text = date_value.get("created") if isinstance(date_value, dict) else str(date_value or "")
+            summary = "Live ReliefWeb operational intelligence update"
+            if date_text:
+                summary += f" — {date_text[:19]}"
+            articles.append({
+                "title": title,
+                "link": fields.get("url") or "https://reliefweb.int",
+                "location_name": country_name or "Global",
+                "lat": float(lat),
+                "lon": float(lon),
+                "source": str(source_name).upper(),
+                "summary": summary,
+                "is_un_data": True,
+            })
+    except Exception:
+        pass
+    return articles
+
+def fetch_usgs_geojson(limit=20):
+    articles = []
+    url = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson"
+    try:
+        response = requests.get(url, headers=REQUEST_HEADERS, timeout=6)
+        response.raise_for_status()
+        data = response.json()
+        for feature in data.get("features", [])[:limit]:
+            props = feature.get("properties") or {}
+            geometry = feature.get("geometry") or {}
+            coords = geometry.get("coordinates") or []
+            if len(coords) < 2:
+                continue
+            lon = _safe_float(coords[0])
+            lat = _safe_float(coords[1])
+            if lat is None or lon is None:
+                continue
+            title = clean_text(props.get("title") or "USGS earthquake")
+            link = props.get("url") or "https://earthquake.usgs.gov/"
+            magnitude = props.get("mag")
+            place = clean_text(props.get("place") or "Global")
+            time_ms = props.get("time")
+            time_text = ""
+            if time_ms:
+                time_text = time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime(time_ms / 1000))
+            summary = f"Magnitude {magnitude} — {place}"
+            if time_text:
+                summary += f" — {time_text}"
+            articles.append({
+                "title": title,
+                "link": link,
+                "location_name": place,
+                "lat": lat,
+                "lon": lon,
+                "source": "USGS",
+                "summary": summary,
+                "is_un_data": True,
+            })
+    except Exception:
+        pass
+    return articles
+
+def fetch_usgs_atom(limit=12):
+    articles = fetch_rss("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.atom", "USGS", limit=limit, only_relevant=False)
+    return [{**article, "is_un_data": True} for article in articles]
+
+# ================================================================
+# PARALLEL FETCH AND DEDUPLICATION (Cached at top level)
+# ================================================================
+@st.cache_data(ttl=120, show_spinner=False)
+def fetch_all_crisis_data():
+    media_feeds = [
         ("BBC (UK)", "https://feeds.bbci.co.uk/news/rss.xml"),
         ("SKY NEWS", "https://feeds.skynews.com/feeds/rss/home.xml"),
         ("AL JAZEERA", "https://www.aljazeera.com/xml/rss/all.xml"),
@@ -316,51 +467,23 @@ def fetch_live_media():
         ("US STATE DEPT", "https://www.state.gov/rss-feed/state-news/"),
     ]
 
-    all_articles = []
-    # Fetch all 15 news feeds concurrently
-    with ThreadPoolExecutor(max_workers=15) as executor:
-        futures = [
-            executor.submit(fetch_rss, url, source, limit=8, only_relevant=True)
-            for source, url in feeds
-        ]
-        for future in as_completed(futures):
-            try:
-                articles = future.result()
-                if articles:
-                    all_articles.extend(articles)
-            except Exception:
-                pass
-
-    seen = set()
-    unique = []
-    for article in all_articles:
-        key = article["title"].strip().lower()
-        if key in seen:
-            continue
-        seen.add(key)
-        unique.append(article)
-
-    return unique
-
-
-# ================================================================
-# FETCH ALL SOURCES IN PARALLEL & DEDUPLICATE
-# ================================================================
-@st.cache_data(ttl=120, show_spinner=False)
-def fetch_all_crisis_data():
-    """Fetches every data provider and media source in parallel."""
-    tasks = [
-        lambda: fetch_rss(FEED_CONFIG[0]["feed_url"], "GDACS", limit=8),
-        lambda: fetch_rss(FEED_CONFIG[1]["feed_url"], "GDACS", limit=8),
-        lambda: fetch_reliefweb(limit=15),
-        lambda: fetch_usgs_geojson(limit=20),
-        lambda: fetch_usgs_atom(limit=12),
-        lambda: fetch_live_media(),
-    ]
-
     combined = []
-    with ThreadPoolExecutor(max_workers=6) as executor:
-        futures = [executor.submit(task) for task in tasks]
+
+    # Run all feed requests concurrently in background threads
+    with ThreadPoolExecutor(max_workers=20) as executor:
+        futures = []
+
+        # Primary feeds
+        futures.append(executor.submit(fetch_rss, FEED_CONFIG[0]["feed_url"], "GDACS", 8, False))
+        futures.append(executor.submit(fetch_rss, FEED_CONFIG[1]["feed_url"], "GDACS", 8, False))
+        futures.append(executor.submit(fetch_reliefweb, 15))
+        futures.append(executor.submit(fetch_usgs_geojson, 20))
+        futures.append(executor.submit(fetch_usgs_atom, 12))
+
+        # Media feeds
+        for source, url in media_feeds:
+            futures.append(executor.submit(fetch_rss, url, source, 8, True))
+
         for future in as_completed(futures):
             try:
                 res = future.result()
@@ -373,18 +496,16 @@ def fetch_all_crisis_data():
     seen = set()
     mapped = []
     for article in combined:
-        key = (
-            article["title"].strip().lower(),
-            round(article["lat"], 3),
-            round(article["lon"], 3),
-        )
+        title_key = article["title"].strip().lower()
+        key = (title_key, round(article["lat"], 3), round(article["lon"], 3))
         if key in seen:
             continue
         seen.add(key)
         mapped.append(article)
+
     return mapped
 
-# Fetch all data concurrently (cached for 2 minutes)
+# Retrieve all data at once
 mapped_alerts = fetch_all_crisis_data()
 
 # ================================================================
