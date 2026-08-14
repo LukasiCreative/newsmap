@@ -106,31 +106,99 @@ st.markdown(
             background: #111827 !important;
             box-shadow: 0 -5px 18px rgba(0,0,0,0.6) !important;
         }
-        #news-ticker-overlay iframe {
-            width: 100% !important;
-            height: 100% !important;
-            border: none !important;
-            display: block !important;
-            background: transparent !important;
+        #news-ticker-overlay * { box-sizing: border-box; }
+        #ticker-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 28px;
+            padding: 0 14px;
+            font-family: Arial, sans-serif;
+            font-size: 9px;
+            font-weight: 900;
+            letter-spacing: .5px;
+            text-transform: uppercase;
+            color: #e5e7eb;
+            border-top: 1px solid rgba(255,255,255,.15);
+        }
+        #ticker-content {
+            height: calc(100% - 28px);
+            padding: 4px 16px 12px;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            opacity: 1;
+            transition: opacity .4s ease;
+        }
+        #ticker-content.fade { opacity: 0; }
+        #news-ticker-overlay .headline-top {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 4px;
+        }
+        #news-ticker-overlay .source {
+            padding: 2px 6px;
+            border-radius: 3px;
+            background: #3b70b4;
+            color: white;
+            font-size: 8px;
+            font-weight: 900;
+            letter-spacing: .4px;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+        #news-ticker-overlay .location {
+            color: #ff8b8b;
+            font-size: 8px;
+            font-weight: 800;
+            letter-spacing: .4px;
+            text-transform: uppercase;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        #news-ticker-overlay .title a {
+            color: white;
+            font-size: 15px;
+            font-weight: 800;
+            line-height: 1.35;
+            text-decoration: none;
+            cursor: pointer;
+            display: -webkit-box;
+            -webkit-line-clamp: 4;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        #news-ticker-overlay .title a:hover,
+        #news-ticker-overlay .title a:active { color: #75b9f5; }
+        #news-ticker-overlay .banner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            background: white;
+            overflow: hidden;
+        }
+        #news-ticker-overlay .banner img {
+            display: block;
+            width: 100%;
+            height: auto;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        #news-ticker-overlay .banner-fallback {
+            color: #202938;
+            font-family: Georgia, serif;
+            font-size: 18px;
+            font-weight: 700;
+            text-align: center;
+            padding: 8px;
         }
 
-        /* Fallback styling while the ticker iframe is still in the Streamlit flow */
-        div[data-testid="stCustomComponentV1"]:not(:has(iframe.leaflet-container)) {
-            position: fixed !important;
-            bottom: 0 !important;
-            left: 0 !important;
-            width: 100% !important;
-            height: clamp(130px, 24dvh, 200px) !important;
-            padding-bottom: env(safe-area-inset-bottom, 0px) !important;
-            z-index: 2147483000 !important;
-            pointer-events: auto !important;
-            border: none !important;
-            background: #111827 !important;
-        }
-        div[data-testid="stCustomComponentV1"]:not(:has(iframe.leaflet-container)) iframe {
-            width: 100% !important;
-            height: 100% !important;
-            border: none !important;
+        /* The ticker driver component is headless: it only renders the overlay above */
+        div[data-testid="stCustomComponentV1"]:not(:has(iframe.leaflet-container)),
+        div[data-testid="stElementContainer"]:has(div[data-testid="stCustomComponentV1"]:not(:has(iframe.leaflet-container))) {
+            display: none !important;
         }
 
         /* Map component fills the window */
@@ -659,9 +727,6 @@ for alert_idx, item, lat, lon in live_pin_items:
         f'📍 {html.escape(str(item["location_name"]))} — {html.escape(str(item["source"]))}'
         '</span><br>'
         f'<a href="?article={alert_idx}" target="_top" '
-        f"onclick=\"event.preventDefault();var b=window.top.location.origin+window.top.location.pathname;"
-        f"var u=b+'?article={alert_idx}';var w=window.open(u,'_blank');"
-        f"if(!w){{try{{window.top.location.href=u;}}catch(err){{window.location.href=u;}}}}return false;\" "
         f'style="text-decoration:none;font-weight:700;color:{marker_color};display:inline-block;margin-top:4px;cursor:pointer;">'
         f'{html.escape(str(item["title"]))} ↗'
         '</a>'
@@ -780,184 +845,38 @@ components.html(
     f"""
     <!DOCTYPE html>
     <html>
-    <head>
-        <meta charset="UTF-8">
-        <style>
-            * {{ box-sizing: border-box; }}
-            html, body {{
-                margin: 0; padding: 0;
-                width: 100%; height: 100%;
-                overflow: hidden;
-                background: #111827;
-                font-family: Arial, sans-serif;
-            }}
-            #ticker {{
-                position: absolute;
-                inset: 0;
-                width: 100%;
-                height: 100%;
-                overflow: hidden;
-                background: #111827;
-                color: white;
-                border-top: 1px solid rgba(255,255,255,.15);
-                box-shadow: 0 -5px 18px rgba(0,0,0,0.5);
-            }}
-            #ticker-header {{
-                position: absolute;
-                left: 0; right: 0; top: 0;
-                height: 28px;
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                padding: 0 14px;
-                font-size: 9px;
-                font-weight: 900;
-                letter-spacing: .5px;
-                text-transform: uppercase;
-                color: #e5e7eb;
-                z-index: 10;
-            }}
-            #ticker-content {{
-                position: absolute;
-                left: 0; right: 0;
-                top: 28px; bottom: 0;
-                padding: 8px 16px 12px;
-                display: flex;
-                align-items: flex-start;
-                justify-content: center;
-                overflow: hidden;
-                opacity: 1;
-                transition: opacity .4s ease;
-            }}
-            #ticker-content.fade {{ opacity: 0; }}
-            .headline {{ width: 100%; }}
-            .headline-top {{
-                display: flex;
-                align-items: center;
-                gap: 6px;
-                margin-bottom: 4px;
-            }}
-            .source {{
-                display: inline-block;
-                padding: 2px 6px;
-                border-radius: 3px;
-                background: #3b70b4;
-                color: white;
-                font-size: 8px;
-                font-weight: 900;
-                letter-spacing: .4px;
-                text-transform: uppercase;
-                white-space: nowrap;
-            }}
-            .location {{
-                color: #ff8b8b;
-                font-size: 8px;
-                font-weight: 800;
-                letter-spacing: .4px;
-                text-transform: uppercase;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-            }}
-            .title {{
-                color: white;
-                font-size: 15px;
-                font-weight: 800;
-                line-height: 1.35;
-            }}
-            .title a {{
-                color: white;
-                text-decoration: none;
-                cursor: pointer;
-                display: -webkit-box;
-                -webkit-line-clamp: 4;
-                -webkit-box-orient: vertical;
-                overflow: hidden;
-            }}
-            .title a:active {{ color: #75b9f5; }}
-            .title a:hover {{ color: #75b9f5; }}
-            .banner {{
-                width: 100%; height: 100%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                background: white;
-                overflow: hidden;
-            }}
-            .banner img {{
-                display: block;
-                width: 100%;
-                height: auto;
-                max-height: 100%;
-                object-fit: contain;
-            }}
-            .banner-fallback {{
-                color: #202938;
-                font-family: Georgia, serif;
-                font-size: 18px;
-                font-weight: 700;
-                text-align: center;
-                padding: 8px;
-            }}
-        </style>
-    </head>
+    <head><meta charset="UTF-8"></head>
     <body>
-        <div id="ticker">
-            <div id="ticker-header">
-                <span>🛰️ LIVE DATA SOURCES</span>
-                <span>LIVE PIN HEADLINES</span>
-            </div>
-            <div id="ticker-content"></div>
-        </div>
         <script>
-            // Lift this iframe out of the Streamlit page flow and pin it to the
-            // bottom of the app window, as a layer on top of the map.
-            (function pinToAppBottom() {{
-                try {{
-                    const frame = window.frameElement;
-                    if (!frame) return;
-                    const doc = frame.ownerDocument;
-                    let layer = doc.getElementById("news-ticker-overlay");
-                    if (!layer) {{
-                        layer = doc.createElement("div");
-                        layer.id = "news-ticker-overlay";
-                        doc.body.appendChild(layer);
-                    }}
-                    frame.setAttribute("scrolling", "no");
-                    frame.style.cssText = "width:100%;height:100%;border:0;display:block;background:transparent;";
-                    if (frame.parentElement !== layer) {{
-                        layer.innerHTML = "";
-                        layer.appendChild(frame);
-                    }}
-                }} catch (e) {{}}
-            }})();
-
-            // Build/open URLs against the top-level app window, not the iframe.
-            function appBase() {{
-                try {{
-                    return window.top.location.origin + window.top.location.pathname;
-                }} catch (e) {{
-                    return window.location.origin + window.location.pathname;
-                }}
-            }}
+            // This component is headless: Streamlit sandboxes component iframes so
+            // links inside them cannot navigate the app window. The ticker is
+            // therefore built in the app document itself, where a click on a
+            // headline navigates the whole window (fullscreen article view).
+            const frame = window.frameElement;
+            const doc = frame ? frame.ownerDocument : document;
+            const win = doc.defaultView;
 
             function appUrl(query) {{
-                return appBase() + query;
+                return win.location.origin + win.location.pathname + query;
             }}
 
-            // Streamlit sandboxes component iframes (no top navigation), so the
-            // article opens in a new tab, falling back to in-place navigation.
-            function openInApp(query) {{
-                const target = appUrl(query);
-                const opened = window.open(target, "_blank");
-                if (!opened) {{
-                    try {{
-                        window.top.location.href = target;
-                    }} catch (e) {{
-                        window.location.href = target;
-                    }}
+            function buildOverlay() {{
+                let layer = doc.getElementById("news-ticker-overlay");
+                if (!layer) {{
+                    layer = doc.createElement("div");
+                    layer.id = "news-ticker-overlay";
+                    doc.body.appendChild(layer);
                 }}
+                layer.innerHTML =
+                    '<div id="ticker-header">' +
+                    '<span>🛰️ LIVE DATA SOURCES</span>' +
+                    '<span>LIVE PIN HEADLINES</span>' +
+                    '</div><div id="ticker-content"></div>';
+                return layer;
             }}
+
+            const overlay = buildOverlay();
+            const content = doc.getElementById("ticker-content");
 
             const headlines = {ticker_json};
             const pinLookup = {pin_lookup_json};
@@ -967,86 +886,25 @@ components.html(
             const FADE_TIME = 400;
             let currentIndex = 0;
             let holdUntil = 0;   // pauses rotation while a clicked pin is shown
-            const content = document.getElementById("ticker-content");
-
-            // A pin click on the map pushes its headline straight into the ticker.
-            function showPinHeadline(index) {{
-                const item = pinLookup[String(index)];
-                if (!item) return;
-                holdUntil = Date.now() + 15000;
-                content.classList.remove("fade");
-                content.innerHTML = "";
-                content.appendChild(renderHeadline(item));
-            }}
-
-            function onPinMessage(event) {{
-                const data = event && event.data;
-                if (data && data.crisisTicker) showPinHeadline(data.index);
-            }}
-
-            window.addEventListener("message", onPinMessage);
-            try {{
-                if (window.top !== window) window.top.addEventListener("message", onPinMessage);
-            }} catch (e) {{}}
-
-            // The map lives in a sibling iframe: poll it for an open popup so a
-            // pin click shows that headline down here.
-            let lastPopupIndex = null;
-            function openPopupIndex() {{
-                let frames;
-                try {{
-                    frames = window.top.frames;
-                }} catch (e) {{
-                    return null;
-                }}
-                for (let i = 0; i < frames.length; i++) {{
-                    let link;
-                    try {{
-                        link = frames[i].document.querySelector(
-                            '.leaflet-popup-content a[href^="?article="]'
-                        );
-                    }} catch (e) {{
-                        continue;
-                    }}
-                    if (link) {{
-                        const idx = parseInt(link.getAttribute("href").split("=")[1], 10);
-                        if (!isNaN(idx)) return idx;
-                    }}
-                }}
-                return null;
-            }}
-
-            setInterval(function () {{
-                const idx = openPopupIndex();
-                if (idx === lastPopupIndex) return;
-                lastPopupIndex = idx;
-                if (idx !== null) showPinHeadline(idx);
-            }}, 400);
 
             function renderHeadline(item) {{
-                const wrapper = document.createElement("div");
+                const wrapper = doc.createElement("div");
                 wrapper.className = "headline";
-                const top = document.createElement("div");
+                const top = doc.createElement("div");
                 top.className = "headline-top";
-                const source = document.createElement("span");
+                const source = doc.createElement("span");
                 source.className = "source";
                 source.textContent = item.source;
-                const location = document.createElement("span");
+                const location = doc.createElement("span");
                 location.className = "location";
                 location.textContent = "📍 " + item.location;
                 top.appendChild(source);
                 top.appendChild(location);
-                const title = document.createElement("div");
+                const title = doc.createElement("div");
                 title.className = "title";
-                const link = document.createElement("a");
-                // The iframe has no usable base URL, so resolve against the app window.
+                const link = doc.createElement("a");
                 link.href = appUrl(item.url);
-                link.target = "_blank";
                 link.textContent = item.title + " ↗";
-                link.addEventListener("click", function (event) {{
-                    event.preventDefault();
-                    openInApp(item.url);
-                }});
                 title.appendChild(link);
                 wrapper.appendChild(top);
                 wrapper.appendChild(title);
@@ -1054,15 +912,15 @@ components.html(
             }}
 
             function renderBanner() {{
-                const wrapper = document.createElement("div");
+                const wrapper = doc.createElement("div");
                 wrapper.className = "banner";
                 if (banner) {{
-                    const image = document.createElement("img");
+                    const image = doc.createElement("img");
                     image.src = banner;
                     image.alt = "In friendship with Air Brussels Times";
                     wrapper.appendChild(image);
                 }} else {{
-                    const fallback = document.createElement("div");
+                    const fallback = doc.createElement("div");
                     fallback.className = "banner-fallback";
                     fallback.textContent = "In friendship with: Air Brussels Times";
                     wrapper.appendChild(fallback);
@@ -1070,54 +928,117 @@ components.html(
                 return wrapper;
             }}
 
+            function setContent(node) {{
+                content.innerHTML = "";
+                content.appendChild(node);
+            }}
+
+            // A pin click on the map pushes that headline into the ticker.
+            function showPinHeadline(index) {{
+                const item = pinLookup[String(index)];
+                if (!item) return;
+                holdUntil = Date.now() + 15000;
+                content.classList.remove("fade");
+                setContent(renderHeadline(item));
+            }}
+
+            // Full-window navigation, driven from the app document so the article
+            // page replaces the map instead of opening in a sandboxed frame.
+            function navigateApp(query) {{
+                const url = appUrl(query);
+                const link = doc.createElement("a");
+                link.href = url;
+                link.style.display = "none";
+                doc.body.appendChild(link);
+                link.click();
+                setTimeout(function () {{
+                    link.remove();
+                    if (win.location.search.indexOf(query.replace("?", "")) === -1) {{
+                        window.open(url, "_blank");
+                    }}
+                }}, 400);
+            }}
+
+            // The map is a sibling iframe: watch it for an open popup, mirror the
+            // headline down here and make its link open the fullscreen article.
+            let lastPopupIndex = null;
+            function popupLink() {{
+                let frames;
+                try {{
+                    frames = win.frames;
+                }} catch (e) {{
+                    return null;
+                }}
+                for (let i = 0; i < frames.length; i++) {{
+                    try {{
+                        const link = frames[i].document.querySelector(
+                            '.leaflet-popup-content a[href^="?article="]'
+                        );
+                        if (link) return link;
+                    }} catch (e) {{}}
+                }}
+                return null;
+            }}
+
+            setInterval(function () {{
+                const link = popupLink();
+                const idx = link
+                    ? parseInt(link.getAttribute("href").split("=")[1], 10)
+                    : null;
+                if (link && !link.dataset.crisisBound) {{
+                    link.dataset.crisisBound = "1";
+                    link.addEventListener("click", function (event) {{
+                        event.preventDefault();
+                        navigateApp(link.getAttribute("href"));
+                    }});
+                }}
+                if (idx === lastPopupIndex) return;
+                lastPopupIndex = idx;
+                if (idx !== null && !isNaN(idx)) showPinHeadline(idx);
+            }}, 400);
+
             function displayCurrent() {{
                 if (Date.now() < holdUntil) return;
                 content.classList.add("fade");
-                setTimeout(function() {{
-                    content.innerHTML = "";
+                setTimeout(function () {{
                     if (currentIndex < headlines.length) {{
-                        content.appendChild(renderHeadline(headlines[currentIndex]));
+                        setContent(renderHeadline(headlines[currentIndex]));
                     }} else {{
-                        content.appendChild(renderBanner());
+                        setContent(renderBanner());
                     }}
                     content.classList.remove("fade");
                 }}, FADE_TIME);
             }}
 
-            let startIndex = 0;
+            function startRotation() {{
+                setInterval(function () {{
+                    currentIndex++;
+                    if (currentIndex >= headlines.length + 1) currentIndex = 0;
+                    displayCurrent();
+                }}, DISPLAY_TIME);
+            }}
+
             if (bannerArticle) {{
-                content.appendChild(renderHeadline(bannerArticle));
-                setTimeout(function() {{
+                setContent(renderHeadline(bannerArticle));
+                setTimeout(function () {{
                     currentIndex = 0;
                     displayCurrent();
-                    setInterval(function() {{
-                        currentIndex++;
-                        if (currentIndex >= headlines.length + 1) {{
-                            currentIndex = 0;
-                        }}
-                        displayCurrent();
-                    }}, DISPLAY_TIME);
+                    startRotation();
                 }}, DISPLAY_TIME);
             }} else {{
                 if (headlines.length > 0) {{
-                    content.appendChild(renderHeadline(headlines[0]));
+                    setContent(renderHeadline(headlines[0]));
                     currentIndex = 0;
                 }} else {{
-                    content.appendChild(renderBanner());
+                    setContent(renderBanner());
                     currentIndex = headlines.length;
                 }}
-                setInterval(function() {{
-                    currentIndex++;
-                    if (currentIndex >= headlines.length + 1) {{
-                        currentIndex = 0;
-                    }}
-                    displayCurrent();
-                }}, DISPLAY_TIME);
+                startRotation();
             }}
         </script>
     </body>
     </html>
     """,
-    height=200,
+    height=0,
     scrolling=False
 )
