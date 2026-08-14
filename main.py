@@ -679,7 +679,7 @@ if BANNER_PATH.exists():
         banner_data = ""
 
 # ================================================================
-# BUILD MAP – ALWAYS DARK TILES & DEFAULT ZOOM TO RED PINS
+# BUILD MAP – ALWAYS DARK TILES & FIT ALL RED PINS
 # ================================================================
 live_pin_items = []
 for alert_idx, item in enumerate(mapped_alerts):
@@ -691,18 +691,13 @@ for alert_idx, item in enumerate(mapped_alerts):
     except (TypeError, ValueError):
         continue
 
-# Identify all actual red pins with real coordinates
+# Extract ALL red pins (media / crisis news pins)
 red_pins = [p for p in live_pin_items if not p[1]["is_un_data"]]
-# Filter out fallback (20.0, 0.0) global coords so they don't stretch the zoom to world level
-real_red_pins = [
-    p for p in red_pins 
-    if not (abs(p[2] - 20.0) < 0.01 and abs(p[3] - 0.0) < 0.01) and p[1].get("location_name", "").lower() != "global"
-]
-target_pins = real_red_pins if real_red_pins else (red_pins if red_pins else live_pin_items)
+target_pins = red_pins if red_pins else live_pin_items
 
-# Compute initial map center and bounding coordinates
-init_lat, init_lon, init_zoom = 20.0, 0.0, 3
-reapply_view_js = ""
+# Calculate bounding box encompassing ALL target pins
+init_lat, init_lon, init_zoom = 20.0, 0.0, 2
+bounds_js = None
 
 banner_article = None
 if banner_idx is not None and 0 <= banner_idx < len(mapped_alerts):
@@ -711,37 +706,37 @@ if banner_idx is not None and 0 <= banner_idx < len(mapped_alerts):
 if banner_article is not None:
     init_lat, init_lon = banner_article["lat"], banner_article["lon"]
     init_zoom = 8
-    reapply_view_js = f"{m.get_name() if 'm' in locals() else 'map'}.setView([{init_lat}, {init_lon}], 8);"
+    bounds_js = f"__mapObj.setView([{init_lat}, {init_lon}], 8);"
 elif target_pins:
     lats = [p[2] for p in target_pins]
     lons = [p[3] for p in target_pins]
-    init_lat = sum(lats) / len(lats)
-    init_lon = sum(lons) / len(lons)
+    init_lat = (min(lats) + max(lats)) / 2.0
+    init_lon = (min(lons) + max(lons)) / 2.0
     
     if len(target_pins) == 1:
         init_zoom = 7
-        reapply_view_js = f"__mapObj.setView([{lats[0]}, {lons[0]}], 7);"
+        bounds_js = f"__mapObj.setView([{lats[0]}, {lons[0]}], 7);"
     else:
-        south = min(lats)
-        north = max(lats)
-        west = min(lons)
-        east = max(lons)
-        lat_span = max(0.5, north - south)
-        lon_span = max(0.5, east - west)
-        lat_pad = lat_span * 0.08
-        lon_pad = lon_span * 0.08
-        south = max(-85.0, south - lat_pad)
-        north = min(85.0, north + lat_pad)
-        west_bound = max(-180.0, west - lon_pad)
-        east_bound = min(180.0, east + lon_pad)
-        # Pad bottom to allow space for the bottom ticker overlay
-        reapply_view_js = f"__mapObj.fitBounds([[{south},{west_bound}],[{north},{east_bound}]],{{paddingTopLeft:[20,20],paddingBottomRight:[20,170]}});"
+        min_lat = min(lats)
+        max_lat = max(lats)
+        min_lon = min(lons)
+        max_lon = max(lons)
+        
+        # Add a 6% buffer around all sides to guarantee no pin touches edges
+        lat_span = max(0.5, max_lat - min_lat)
+        lon_span = max(0.5, max_lon - min_lon)
+        south = max(-85.0, min_lat - (lat_span * 0.06))
+        north = min(85.0, max_lat + (lat_span * 0.06))
+        west = max(-180.0, min_lon - (lon_span * 0.06))
+        east = min(180.0, max_lon + (lon_span * 0.06))
+        
+        # paddingTopLeft: 40px margin, paddingBottomRight: 220px to account for the ticker overlay
+        bounds_js = f"__mapObj.fitBounds([[{south},{west}],[{north},{east}]],{{paddingTopLeft:[40,40],paddingBottomRight:[40,220]}});"
 
 m = folium.Map(
     location=[init_lat, init_lon],
     zoom_start=init_zoom,
     min_zoom=2,
-    max_bounds=True,
     zoom_control=False,
     scrollWheelZoom=True,
     touchZoom=True
@@ -797,35 +792,35 @@ for alert_idx, item, lat, lon in live_pin_items:
     )
     marker.add_to(m)
 
-# --- Map resize & zoom execution fix ---
-if live_pin_items and reapply_view_js:
-    map_var_name = m.get_name()
-    js_command = reapply_view_js.replace("__mapObj", map_var_name)
-    resize_fix_script = f"""
+# --- Ensure all red pins fit inside the view immediately on start ---
+if live_pin_items and bounds_js:
+    map_var = m.get_name()
+    js_cmd = bounds_js.replace("__mapObj", map_var)
+    fit_script = f"""
     <script>
-    function __fixMapView(){{
+    function __fitRedPins() {{
         try {{
-            var __mapObj = {map_var_name};
+            var __mapObj = {map_var};
             if (__mapObj) {{
                 __mapObj.invalidateSize();
-                {js_command}
+                {js_cmd}
             }}
         }} catch(e) {{}}
     }}
-    window.addEventListener('DOMContentLoaded', __fixMapView);
+    window.addEventListener('DOMContentLoaded', __fitRedPins);
     window.addEventListener('load', function() {{
-        __fixMapView();
-        setTimeout(__fixMapView, 100);
-        setTimeout(__fixMapView, 400);
-        setTimeout(__fixMapView, 900);
+        __fitRedPins();
+        setTimeout(__fitRedPins, 150);
+        setTimeout(__fitRedPins, 500);
+        setTimeout(__fitRedPins, 1000);
     }});
-    window.addEventListener('resize', __fixMapView);
+    window.addEventListener('resize', __fitRedPins);
     if (window.ResizeObserver) {{
-        new ResizeObserver(__fixMapView).observe(document.body);
+        new ResizeObserver(__fitRedPins).observe(document.body);
     }}
     </script>
     """
-    m.get_root().html.add_child(folium.Element(resize_fix_script))
+    m.get_root().html.add_child(folium.Element(fit_script))
 
 # ================================================================
 # RENDER: MAP FIRST, TICKER OVERLAY AT BOTTOM
@@ -836,7 +831,7 @@ st_folium(
     width="100%",
     height=600,
     returned_objects=[],
-    key="tactical_map_flush_v32"
+    key="tactical_map_flush_v33"
 )
 
 # Ticker – fixed overlay at bottom
