@@ -75,8 +75,8 @@ st.markdown(
             bottom: 0 !important;
             left: 0 !important;
             width: 100% !important;
-            height: 140px !important;          /* adjust if needed */
-            z-index: 9999 !important;          /* on top of everything */
+            height: 140px !important;
+            z-index: 9999 !important;
             pointer-events: auto !important;
             border: none !important;
             box-shadow: 0 -5px 18px rgba(0,0,0,0.6) !important;
@@ -93,7 +93,7 @@ st.markdown(
 )
 
 # ================================================================
-# CONSTANTS (unchanged)
+# CONSTANTS
 # ================================================================
 WAR_KEYWORDS = [
     "war", "bomb", "explosion", "strike", "missile", "shelling",
@@ -122,7 +122,7 @@ REQUEST_HEADERS = {
 }
 
 # ================================================================
-# HELPERS (unchanged)
+# HELPERS
 # ================================================================
 def clean_text(value):
     value = html.unescape(value or "")
@@ -173,7 +173,7 @@ FEED_CONFIG = [
 ]
 
 # ================================================================
-# FETCH FUNCTIONS (unchanged – only feed parsing, no layout)
+# FETCH FUNCTIONS
 # ================================================================
 @st.cache_data(ttl=120, show_spinner=False)
 def fetch_rss(url, source_name, limit=8, only_relevant=False):
@@ -327,17 +327,37 @@ def fetch_usgs_atom(limit=12):
     articles = fetch_rss("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.atom", "USGS", limit=limit, only_relevant=False)
     return [{**article, "is_un_data": True} for article in articles]
 
+# ================================================================
+# LIVE MEDIA FEEDS – UPDATED WITH NEW SOURCES
+# ================================================================
 def fetch_live_media():
     all_articles = []
     feeds = [
+        # Existing media
         ("BBC (UK)", "https://feeds.bbci.co.uk/news/rss.xml"),
         ("SKY NEWS", "https://feeds.skynews.com/feeds/rss/home.xml"),
         ("AL JAZEERA", "https://www.aljazeera.com/xml/rss/all.xml"),
         ("THE GUARDIAN", "https://www.theguardian.com/world/rss"),
         ("FRANCE 24", "https://www.france24.com/en/rss"),
+
+        # New sources (all RSS feeds)
+        ("SWEDISH ARMED FORCES", "https://www.mynewsdesk.com/forsvarsmakten/latest_news?format=rss"),
+        ("CRISIS GROUP", "https://www.crisisgroup.org/rss.xml"),
+        ("RADIO FREE EUROPE", "https://www.rferl.org/rss"),
+        ("DEFENSE ONE", "https://defenseone.com/feed"),
+        ("DEFENSE NEWS", "https://defensenews.com/feed"),
+        ("RUSI", "https://rusi.org/feed"),
+        ("LONG WAR JOURNAL", "https://longwarjournal.org/feed"),
+        ("THE WAR ZONE", "https://www.twz.com/feed"),
+        ("CFR", "https://www.cfr.org/rss"),
+        ("US STATE DEPT", "https://www.state.gov/rss-feed/state-news/"),
+        # ISW feed not available (403), skipping
     ]
+
     for source, url in feeds:
         all_articles.extend(fetch_rss(url, source, limit=8, only_relevant=True))
+
+    # Remove duplicate headlines
     seen = set()
     unique = []
     for article in all_articles:
@@ -346,6 +366,7 @@ def fetch_live_media():
             continue
         seen.add(key)
         unique.append(article)
+
     return unique
 
 # ================================================================
@@ -369,7 +390,7 @@ for article in feed_articles:
     mapped_alerts.append(article)
 
 # ================================================================
-# ARTICLE VIEW (unchanged)
+# ARTICLE VIEW
 # ================================================================
 requested_article = st.query_params.get("article")
 if requested_article is not None:
@@ -522,7 +543,7 @@ if BANNER_PATH.exists():
         banner_data = ""
 
 # ================================================================
-# BUILD MAP (unchanged)
+# BUILD MAP
 # ================================================================
 live_pin_items = []
 for alert_idx, item in enumerate(mapped_alerts):
@@ -648,19 +669,19 @@ if live_pin_items:
     m.get_root().html.add_child(folium.Element(resize_fix_script))
 
 # ================================================================
-# RENDER ORDER: MAP FIRST, THEN TICKER OVERLAY
+# RENDER ORDER: MAP FIRST, TICKER OVERLAY AT BOTTOM
 # ================================================================
 
-# 1. Render the map (full viewport)
+# 1. Map – full viewport
 st_folium(
     m,
     width="100%",
-    height=600,          # will be overridden by CSS to 100vh
+    height=600,          # CSS overrides to 100vh
     returned_objects=[],
     key="tactical_map_flush_v31"
 )
 
-# 2. Render the ticker as a fixed overlay (bottom)
+# 2. Ticker – fixed overlay at bottom (SLOWED DOWN: 8 seconds)
 ticker_json = json.dumps(ticker_items, ensure_ascii=False)
 banner_json = json.dumps(banner_data)
 
@@ -793,7 +814,7 @@ components.html(
         <script>
             const headlines = {ticker_json};
             const banner = {banner_json};
-            const DISPLAY_TIME = 8000;   // 8 seconds per item – increase for slower
+            const DISPLAY_TIME = 8000;   // 8 seconds per item – change to 10000 or 12000 for slower
             const FADE_TIME = 400;
             let currentIndex = 0;
             const content = document.getElementById("ticker-content");
@@ -869,6 +890,6 @@ components.html(
     </body>
     </html>
     """,
-    height=140,          # ticker height – adjust if needed
+    height=140,
     scrolling=False
 )
