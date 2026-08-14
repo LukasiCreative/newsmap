@@ -823,7 +823,7 @@ pin_lookup_json = json.dumps({
 }, ensure_ascii=False)
 banner_json = json.dumps(banner_data)
 
-banner_article_json = None
+banner_article_json = 'null'
 if banner_idx is not None and 0 <= banner_idx < len(mapped_alerts):
     banner_article_json = json.dumps({
         "title": clean_text(mapped_alerts[banner_idx]["title"]),
@@ -832,8 +832,11 @@ if banner_idx is not None and 0 <= banner_idx < len(mapped_alerts):
         "url": f"?article={banner_idx}"
     })
 
+is_article_str = "true" if requested_article is not None else "false"
+
+# Build driver component without problematic f-string braces
 components.html(
-    f"""
+    """
     <!DOCTYPE html>
     <html>
     <head><meta charset="UTF-8"></head>
@@ -844,116 +847,117 @@ components.html(
             const doc = frame ? frame.ownerDocument : document;
             const win = doc.defaultView;
 
-            function appUrl(query) {{
+            function appUrl(query) {
                 return win.location.origin + win.location.pathname + query;
-            }}
+            }
 
             // ==========================================
             // TRANSLATION ENGINE & FLAG SELECTOR (TOP RIGHT)
             // ==========================================
             const languages = [
-                {{ code: 'en', flag: '🇬🇧', name: 'English' }},
-                {{ code: 'zh-CN', flag: '🇨🇳', name: 'Chinese' }},
-                {{ code: 'es', flag: '🇪🇸', name: 'Spanish' }},
-                {{ code: 'hi', flag: '🇮🇳', name: 'Hindi' }},
-                {{ code: 'ar', flag: '🇸🇦', name: 'Arabic' }},
-                {{ code: 'fr', flag: '🇫🇷', name: 'French' }},
-                {{ code: 'ru', flag: '🇷🇺', name: 'Russian' }},
-                {{ code: 'sv', flag: '🇸🇪', name: 'Swedish' }},
-                {{ code: 'nl', flag: '🇳🇱', name: 'Dutch' }},
-                {{ code: 'he', flag: '🇮🇱', name: 'Hebrew' }}
+                { code: 'en', flag: '🇬🇧', name: 'English' },
+                { code: 'zh-CN', flag: '🇨🇳', name: 'Chinese' },
+                { code: 'es', flag: '🇪🇸', name: 'Spanish' },
+                { code: 'hi', flag: '🇮🇳', name: 'Hindi' },
+                { code: 'ar', flag: '🇸🇦', name: 'Arabic' },
+                { code: 'fr', flag: '🇫🇷', name: 'French' },
+                { code: 'ru', flag: '🇷🇺', name: 'Russian' },
+                { code: 'sv', flag: '🇸🇪', name: 'Swedish' },
+                { code: 'nl', flag: '🇳🇱', name: 'Dutch' },
+                { code: 'he', flag: '🇮🇱', name: 'Hebrew' }
             ];
 
-            function setGoogleTranslateCookie(langCode) {{
+            function setGoogleTranslateCookie(langCode) {
                 const value = '/auto/' + langCode;
                 const domain = win.location.hostname;
                 doc.cookie = 'googtrans=' + value + ';path=/;';
                 doc.cookie = 'googtrans=' + value + ';path=/;domain=' + domain + ';';
                 doc.cookie = 'googtrans=' + value + ';path=/;domain=.' + domain + ';';
-            }}
+            }
 
-            function triggerTranslate(langCode) {{
+            function triggerTranslate(langCode) {
                 setGoogleTranslateCookie(langCode);
                 const select = doc.querySelector('.goog-te-combo');
-                if (select) {{
+                if (select) {
                     select.value = langCode;
                     select.dispatchEvent(new Event('change'));
-                }} else {{
+                } else {
                     win.location.reload();
-                }}
-            }}
+                }
+            }
 
-            function initGoogleTranslate() {{
-                if (!doc.getElementById('google-translate-script')) {{
+            function initGoogleTranslate() {
+                if (!doc.getElementById('google-translate-script')) {
                     const script = doc.createElement('script');
                     script.id = 'google-translate-script';
                     script.src = 'https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
                     doc.head.appendChild(script);
 
-                    win.googleTranslateElementInit = function() {{
-                        new win.google.translate.TranslateElement({{
+                    win.googleTranslateElementInit = function() {
+                        new win.google.translate.TranslateElement({
                             pageLanguage: 'en',
                             autoDisplay: false
-                        }}, 'google_translate_element');
-                    }};
-                }}
-            }}
+                        }, 'google_translate_element');
+                    };
+                }
+            }
 
-            function buildLanguageSelector() {{
+            function buildLanguageSelector() {
                 let container = doc.getElementById("crisis-lang-picker");
-                if (!container) {{
+                if (!container) {
                     container = doc.createElement("div");
                     container.id = "crisis-lang-picker";
                     container.style.cssText = "position:fixed;top:14px;right:16px;z-index:2147483647;font-family:Arial,sans-serif;";
                     doc.body.appendChild(container);
-                }}
+                }
 
-                // Read current lang
                 let currentLang = 'en';
-                const match = doc.cookie.match(/(?:^|; )googtrans=\/auto\/([^;]+)/);
-                if (match && match[1]) {{
+                const match = doc.cookie.match(/(?:^|; )googtrans=\\/auto\\/([^;]+)/);
+                if (match && match[1]) {
                     currentLang = match[1];
-                }}
+                }
 
-                const activeLangObj = languages.find(l => l.code === currentLang) || languages[0];
+                const activeLangObj = languages.find(function(l) { return l.code === currentLang; }) || languages[0];
 
-                container.innerHTML = `
-                    <div style="position:relative;">
-                        <button id="lang-btn" style="background:#181d29;border:1.5px solid rgba(255,255,255,0.2);border-radius:24px;padding:6px 12px;display:flex;align-items:center;gap:6px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,0.5);color:white;font-size:18px;line-height:1;outline:none;">
-                            <span id="current-flag">${activeLangObj.flag}</span>
-                            <span style="font-size:10px;color:#9ca3af;margin-left:2px;">▼</span>
-                        </button>
-                        <div id="lang-menu" style="display:none;position:absolute;top:115%;right:0;background:#181d29;border:1.5px solid rgba(255,255,255,0.18);border-radius:12px;padding:6px;box-shadow:0 8px 24px rgba(0,0,0,0.7);grid-template-columns:repeat(5, 1fr);gap:4px;width:190px;">
-                            ${languages.map(l => `
-                                <button data-code="${l.code}" title="${l.name}" style="background:transparent;border:none;border-radius:6px;font-size:20px;padding:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.15)'" onmouseout="this.style.background='transparent'">
-                                    ${l.flag}
-                                </button>
-                            `).join('')}
-                        </div>
-                    </div>
-                `;
+                let buttonsHtml = '';
+                for (let i = 0; i < languages.length; i++) {
+                    const l = languages[i];
+                    buttonsHtml += '<button data-code="' + l.code + '" title="' + l.name + '" style="background:transparent;border:none;border-radius:6px;font-size:20px;padding:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.2s;" onmouseover="this.style.background=\\'rgba(255,255,255,0.15)\\'" onmouseout="this.style.background=\\'transparent\\'">' + l.flag + '</button>';
+                }
+
+                container.innerHTML = 
+                    '<div style="position:relative;">' +
+                        '<button id="lang-btn" style="background:#181d29;border:1.5px solid rgba(255,255,255,0.2);border-radius:24px;padding:6px 12px;display:flex;align-items:center;gap:6px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,0.5);color:white;font-size:18px;line-height:1;outline:none;">' +
+                            '<span id="current-flag">' + activeLangObj.flag + '</span>' +
+                            '<span style="font-size:10px;color:#9ca3af;margin-left:2px;">▼</span>' +
+                        '</button>' +
+                        '<div id="lang-menu" style="display:none;position:absolute;top:115%;right:0;background:#181d29;border:1.5px solid rgba(255,255,255,0.18);border-radius:12px;padding:6px;box-shadow:0 8px 24px rgba(0,0,0,0.7);grid-template-columns:repeat(5, 1fr);gap:4px;width:190px;">' +
+                            buttonsHtml +
+                        '</div>' +
+                    '</div>';
 
                 const btn = container.querySelector('#lang-btn');
                 const menu = container.querySelector('#lang-menu');
 
-                btn.addEventListener('click', function(e) {{
+                btn.addEventListener('click', function(e) {
                     e.stopPropagation();
                     menu.style.display = menu.style.display === 'grid' ? 'none' : 'grid';
-                }});
+                });
 
-                doc.addEventListener('click', function() {{
+                doc.addEventListener('click', function() {
                     if (menu) menu.style.display = 'none';
-                }});
+                });
 
-                menu.querySelectorAll('button[data-code]').forEach(itemBtn => {{
-                    itemBtn.addEventListener('click', function(e) {{
+                const itemBtns = menu.querySelectorAll('button[data-code]');
+                for (let j = 0; j < itemBtns.length; j++) {
+                    itemBtns[j].addEventListener('click', function(e) {
                         e.stopPropagation();
                         const code = this.getAttribute('data-code');
                         menu.style.display = 'none';
                         triggerTranslate(code);
-                    }});
-                }});
-            }}
+                    });
+                }
+            }
 
             initGoogleTranslate();
             buildLanguageSelector();
@@ -961,36 +965,36 @@ components.html(
             // ==========================================
             // TICKER OVERLAY (BOTTOM)
             // ==========================================
-            const isArticleView = { 'true' if requested_article is not None else 'false' };
-            if (!isArticleView) {{
-                function buildOverlay() {{
+            const isArticleView = """ + is_article_str + """;
+            if (!isArticleView) {
+                function buildOverlay() {
                     let layer = doc.getElementById("news-ticker-overlay");
-                    if (!layer) {{
+                    if (!layer) {
                         layer = doc.createElement("div");
                         layer.id = "news-ticker-overlay";
                         doc.body.appendChild(layer);
-                    }}
+                    }
                     layer.innerHTML =
                         '<div id="ticker-header">' +
                         '<span>🛰️ LIVE DATA SOURCES</span>' +
                         '<span>LIVE PIN HEADLINES</span>' +
                         '</div><div id="ticker-content"></div>';
                     return layer;
-                }}
+                }
 
                 const overlay = buildOverlay();
                 const content = doc.getElementById("ticker-content");
 
-                const headlines = {ticker_json};
-                const pinLookup = {pin_lookup_json};
-                const banner = {banner_json};
-                const bannerArticle = {banner_article_json if banner_article_json is not None else 'null'};
+                const headlines = """ + ticker_json + """;
+                const pinLookup = """ + pin_lookup_json + """;
+                const banner = """ + banner_json + """;
+                const bannerArticle = """ + banner_article_json + """;
                 const DISPLAY_TIME = 7000;
                 const FADE_TIME = 400;
                 let currentIndex = 0;
                 let holdUntil = 0;
 
-                function renderHeadline(item) {{
+                function renderHeadline(item) {
                     const wrapper = doc.createElement("div");
                     wrapper.className = "headline";
                     const top = doc.createElement("div");
@@ -1012,132 +1016,131 @@ components.html(
                     wrapper.appendChild(top);
                     wrapper.appendChild(title);
                     return wrapper;
-                }}
+                }
 
-                function renderBanner() {{
+                function renderBanner() {
                     const wrapper = doc.createElement("div");
                     wrapper.className = "banner";
-                    if (banner) {{
+                    if (banner) {
                         const image = doc.createElement("img");
                         image.src = banner;
                         image.alt = "In friendship with Air Brussels Times";
                         wrapper.appendChild(image);
-                    }} else {{
+                    } else {
                         const fallback = doc.createElement("div");
                         fallback.className = "banner-fallback";
                         fallback.textContent = "In friendship with: Air Brussels Times";
                         wrapper.appendChild(fallback);
-                    }}
+                    }
                     return wrapper;
-                }}
+                }
 
-                function setContent(node) {{
+                function setContent(node) {
                     content.innerHTML = "";
                     content.appendChild(node);
-                }}
+                }
 
-                function showPinHeadline(index) {{
+                function showPinHeadline(index) {
                     const item = pinLookup[String(index)];
                     if (!item) return;
                     holdUntil = Date.now() + 15000;
                     content.classList.remove("fade");
                     setContent(renderHeadline(item));
-                }}
+                }
 
-                function navigateApp(query) {{
+                function navigateApp(query) {
                     const url = appUrl(query);
                     const link = doc.createElement("a");
                     link.href = url;
                     link.style.display = "none";
                     doc.body.appendChild(link);
                     link.click();
-                    setTimeout(function () {{
+                    setTimeout(function () {
                         link.remove();
-                        if (win.location.search.indexOf(query.replace("?", "")) === -1) {{
+                        if (win.location.search.indexOf(query.replace("?", "")) === -1) {
                             window.open(url, "_blank");
-                        }}
-                    }}, 400);
-                }}
+                        }
+                    }, 400);
+                }
 
                 let lastPopupIndex = null;
-                function popupLink() {{
+                function popupLink() {
                     let frames;
-                    try {{
+                    try {
                         frames = win.frames;
-                    }} catch (e) {{
+                    } catch (e) {
                         return null;
-                    }}
-                    for (let i = 0; i < frames.length; i++) {{
-                        try {{
+                    }
+                    for (let i = 0; i < frames.length; i++) {
+                        try {
                             const link = frames[i].document.querySelector(
                                 '.leaflet-popup-content a[href^="?article="]'
                             );
                             if (link) return link;
-                        }} catch (e) {{}}
-                    }}
+                        } catch (e) {}
+                    }
                     return null;
-                }}
+                }
 
-                setInterval(function () {{
+                setInterval(function () {
                     const link = popupLink();
                     const idx = link
                         ? parseInt(link.getAttribute("href").split("=")[1], 10)
                         : null;
-                    if (link && !link.dataset.crisisBound) {{
+                    if (link && !link.dataset.crisisBound) {
                         link.dataset.crisisBound = "1";
-                        link.addEventListener("click", function (event) {{
+                        link.addEventListener("click", function (event) {
                             event.preventDefault();
                             navigateApp(link.getAttribute("href"));
-                        }});
-                    }}
+                        });
+                    }
                     if (idx === lastPopupIndex) return;
                     lastPopupIndex = idx;
                     if (idx !== null && !isNaN(idx)) showPinHeadline(idx);
-                }}, 400);
+                }, 400);
 
-                function displayCurrent() {{
+                function displayCurrent() {
                     if (Date.now() < holdUntil) return;
                     content.classList.add("fade");
-                    setTimeout(function () {{
-                        if (currentIndex < headlines.length) {{
+                    setTimeout(function () {
+                        if (currentIndex < headlines.length) {
                             setContent(renderHeadline(headlines[currentIndex]));
-                        }} else {{
+                        } else {
                             setContent(renderBanner());
-                        }}
+                        }
                         content.classList.remove("fade");
-                    }}, FADE_TIME);
-                }}
+                    }, FADE_TIME);
+                }
 
-                function startRotation() {{
-                    setInterval(function () {{
+                function startRotation() {
+                    setInterval(function () {
                         currentIndex++;
                         if (currentIndex >= headlines.length + 1) currentIndex = 0;
                         displayCurrent();
-                    }}, DISPLAY_TIME);
-                }}
+                    }, DISPLAY_TIME);
+                }
 
-                if (bannerArticle) {{
+                if (bannerArticle) {
                     setContent(renderHeadline(bannerArticle));
-                    setTimeout(function () {{
+                    setTimeout(function () {
                         currentIndex = 0;
                         displayCurrent();
                         startRotation();
-                    }}, DISPLAY_TIME);
-                }} else {{
-                    if (headlines.length > 0) {{
+                    }, DISPLAY_TIME);
+                } else {
+                    if (headlines.length > 0) {
                         setContent(renderHeadline(headlines[0]));
                         currentIndex = 0;
-                    }} else {{
+                    } else {
                         setContent(renderBanner());
                         currentIndex = headlines.length;
-                    }}
+                    }
                     startRotation();
-                }}
-            }} else {{
-                // Hide overlay in article view
+                }
+            } else {
                 const layer = doc.getElementById("news-ticker-overlay");
                 if (layer) layer.remove();
-            }}
+            }
         </script>
     </body>
     </html>
