@@ -1,6 +1,9 @@
 import streamlit as st
+import streamlit.components.v1 as components
+
 import requests
 import folium
+
 import re
 import json
 import html
@@ -32,29 +35,31 @@ st.set_page_config(
 
 def _flatten_html(markup):
     """
-    Removes Python indentation from HTML/CSS before passing it to
-    Streamlit so indented HTML is not interpreted as a Markdown
-    code block.
+    Prevent Streamlit from interpreting indented HTML as
+    Markdown code blocks.
     """
     return re.sub(r"(?m)^[ \t]+", "", markup)
 
 
 # ================================================================
-# SYSTEM STYLES
+# GLOBAL CSS
 # ================================================================
 
 st.markdown(
     _flatten_html("""
     <style>
-        html, body {
+
+        html,
+        body {
             background-color: #262626 !important;
             margin: 0 !important;
             padding: 0 !important;
         }
 
-        /* =========================================================
-           REMOVE STREAMLIT HOST / TOOLBAR / BRANDING
-           ========================================================= */
+
+        /* ========================================================
+           STREAMLIT CHROME
+           ======================================================== */
 
         #MainMenu,
         footer,
@@ -80,6 +85,7 @@ st.markdown(
             pointer-events: none !important;
         }
 
+
         button[title*="Streamlit"],
         button[aria-label*="Streamlit"],
         a[title*="Streamlit"],
@@ -90,77 +96,75 @@ st.markdown(
             pointer-events: none !important;
         }
 
+
+        /* ========================================================
+           APP CONTAINER
+           ======================================================== */
+
         .stApp,
         .stAppViewContainer,
         .stAppViewBlockContainer,
         .main,
         .main .block-container {
-            padding: 0px !important;
-            margin: 0px !important;
+            padding: 0 !important;
+            margin: 0 !important;
             max-width: 100% !important;
             width: 100% !important;
             background-color: #262626 !important;
         }
 
+
         div[data-testid="stAppViewContainer"] {
-            padding-top: 0px !important;
-            margin-top: 0px !important;
+            padding-top: 0 !important;
+            margin-top: 0 !important;
             background-color: #262626 !important;
         }
+
 
         div[data-testid="stAppViewContainer"] > .main {
-            padding-top: 0px !important;
-            margin-top: 0px !important;
+            padding-top: 0 !important;
+            margin-top: 0 !important;
         }
 
+
         div[data-testid="stMainBlockContainer"] {
-            padding-top: 0px !important;
-            margin-top: 0px !important;
+            padding: 0 !important;
+            margin: 0 !important;
             background-color: #262626 !important;
         }
 
+
         .main .block-container {
-            padding-top: 0px !important;
-            margin-top: 0px !important;
+            padding-top: 0 !important;
+            margin-top: 0 !important;
         }
+
 
         div[data-testid="stVerticalBlock"],
         div[data-testid="stElementContainer"],
+        div[data-testid="stVerticalBlockBorderWrapper"],
         div[data-testid="stVerticalBlockInsideExecutionFlow"] {
-            padding-left: 0rem !important;
-            padding-right: 0rem !important;
-            margin-left: 0rem !important;
-            margin-right: 0rem !important;
-            padding-top: 0px !important;
-            padding-bottom: 0px !important;
-            margin-top: 0px !important;
-            margin-bottom: 0px !important;
-            gap: 0px !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            gap: 0 !important;
             width: 100% !important;
             background-color: transparent !important;
         }
 
-        [data-testid="stElementContainer"]:first-child {
-            margin-top: 0px !important;
-            padding-top: 0px !important;
+
+        /* ========================================================
+           IMPORTANT:
+           Do NOT globally style every iframe.
+           
+           The ticker is also an iframe because it is a Streamlit
+           component.
+           ======================================================== */
+
+        div[data-testid="stCustomComponentV1"] {
+            margin: 0 !important;
+            padding: 0 !important;
         }
 
-        div[data-testid="stMainBlockContainer"] {
-            padding-top: 0px !important;
-        }
-
-        /* =========================================================
-           MAP IFRAME
-           ========================================================= */
-
-        div[data-testid="stCustomComponentV1"],
-        iframe {
-            width: 100vw !important;
-            height: calc(100vh - 190px) !important;
-            margin: 0px !important;
-            padding: 0px !important;
-            border: none !important;
-        }
     </style>
     """),
     unsafe_allow_html=True
@@ -231,8 +235,17 @@ GEO_DATABASE = {
 
 
 REQUEST_HEADERS = {
-    "User-Agent": "CrisisCommand/2.0 (+https://gdacs.org; disaster-feed-client)",
-    "Accept": "application/json, application/xml, text/xml, application/atom+xml, */*",
+    "User-Agent": (
+        "CrisisCommand/2.0 "
+        "(+https://gdacs.org; disaster-feed-client)"
+    ),
+    "Accept": (
+        "application/json, "
+        "application/xml, "
+        "text/xml, "
+        "application/atom+xml, "
+        "*/*"
+    ),
 }
 
 
@@ -249,7 +262,11 @@ def clean_text(value):
 def find_location(title, summary):
     text = f"{title} {summary}".lower()
 
-    for name in sorted(GEO_DATABASE, key=len, reverse=True):
+    for name in sorted(
+        GEO_DATABASE,
+        key=len,
+        reverse=True
+    ):
         if name.lower() in text:
             return name, GEO_DATABASE[name]
 
@@ -258,11 +275,9 @@ def find_location(title, summary):
 
 def relevant(title, summary):
     """
-    Returns True only when a war/conflict keyword appears as a
-    complete word.
-
-    This prevents words such as 'warming' from matching 'war'.
+    Match complete words only.
     """
+
     text = f"{title} {summary}".lower()
 
     return any(
@@ -282,64 +297,109 @@ def _safe_float(value):
 
 
 def _xml_local_text(node, *names):
-    wanted = {name.lower() for name in names}
+    wanted = {
+        name.lower()
+        for name in names
+    }
 
     for child in list(node):
-        local = child.tag.rsplit("}", 1)[-1].lower()
 
-        if local in wanted and child.text:
-            return clean_text(child.text)
+        local = child.tag.rsplit(
+            "}",
+            1
+        )[-1].lower()
+
+        if (
+            local in wanted
+            and child.text
+        ):
+            return clean_text(
+                child.text
+            )
 
     return ""
 
 
-def _xml_local_attr(node, child_name, attr_name):
+def _xml_local_attr(
+    node,
+    child_name,
+    attr_name
+):
     for child in list(node):
-        local = child.tag.rsplit("}", 1)[-1].lower()
+
+        local = child.tag.rsplit(
+            "}",
+            1
+        )[-1].lower()
 
         if local == child_name.lower():
-            return child.attrib.get(attr_name, "")
+
+            return child.attrib.get(
+                attr_name,
+                ""
+            )
 
     return ""
 
 
 # ================================================================
-# VERIFIED DISASTER DATA FEEDS
+# FEED CONFIGURATION
 # ================================================================
 
 FEED_CONFIG = [
     {
         "source": "GDACS",
         "format": "XML/RSS",
-        "feed_url": "https://www.gdacs.org/contentdata/xml/rss.xml",
+        "feed_url": (
+            "https://www.gdacs.org/"
+            "contentdata/xml/rss.xml"
+        ),
         "site_url": "https://gdacs.org",
         "parser": "gdacs",
     },
+
     {
         "source": "GDACS (NEW)",
         "format": "XML/RSS",
-        "feed_url": "https://new.gdacs.org/xml/rss.xml",
+        "feed_url": (
+            "https://new.gdacs.org/"
+            "xml/rss.xml"
+        ),
         "site_url": "https://new.gdacs.org",
         "parser": "gdacs",
     },
+
     {
         "source": "RELIEFWEB",
         "format": "JSON",
-        "feed_url": "https://api.reliefweb.int/v2/reports",
+        "feed_url": (
+            "https://api.reliefweb.int/"
+            "v2/reports"
+        ),
         "site_url": "https://reliefweb.int",
         "parser": "reliefweb",
     },
+
     {
         "source": "USGS",
         "format": "GeoJSON",
-        "feed_url": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson",
+        "feed_url": (
+            "https://earthquake.usgs.gov/"
+            "earthquakes/feed/v1.0/"
+            "summary/all_day.geojson"
+        ),
         "site_url": "https://usgs.gov",
         "parser": "usgs_geojson",
     },
+
     {
         "source": "USGS (ATOM)",
         "format": "ATOM/XML",
-        "feed_url": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.atom",
+        "feed_url": (
+            "https://earthquake.usgs.gov/"
+            "earthquakes/feed/v1.0/"
+            "summary/all_day.atom"
+        ),
         "site_url": "https://usgs.gov",
         "parser": "usgs_atom",
     },
@@ -347,15 +407,24 @@ FEED_CONFIG = [
 
 
 # ================================================================
-# RSS / ATOM FETCHER
+# RSS / ATOM
 # ================================================================
 
-@st.cache_data(ttl=120, show_spinner=False)
-def fetch_rss(url, source_name, limit=8, only_relevant=False):
+@st.cache_data(
+    ttl=120,
+    show_spinner=False
+)
+def fetch_rss(
+    url,
+    source_name,
+    limit=8,
+    only_relevant=False
+):
 
     articles = []
 
     try:
+
         response = requests.get(
             url,
             headers=REQUEST_HEADERS,
@@ -364,15 +433,26 @@ def fetch_rss(url, source_name, limit=8, only_relevant=False):
 
         response.raise_for_status()
 
-        root = ET.fromstring(response.content)
+        root = ET.fromstring(
+            response.content
+        )
 
-        items = list(root.findall(".//item"))
+        items = list(
+            root.findall(".//item")
+        )
 
         if not items:
+
             items = [
-                n
-                for n in root.iter()
-                if n.tag.rsplit("}", 1)[-1].lower() == "entry"
+                node
+                for node in root.iter()
+                if (
+                    node.tag.rsplit(
+                        "}",
+                        1
+                    )[-1].lower()
+                    == "entry"
+                )
             ]
 
         for item in items:
@@ -395,6 +475,7 @@ def fetch_rss(url, source_name, limit=8, only_relevant=False):
             )
 
             if not link:
+
                 link = _xml_local_attr(
                     item,
                     "link",
@@ -404,14 +485,18 @@ def fetch_rss(url, source_name, limit=8, only_relevant=False):
             if not title or not link:
                 continue
 
-            if only_relevant and not relevant(
-                title,
-                description
+            if (
+                only_relevant
+                and
+                not relevant(
+                    title,
+                    description
+                )
             ):
                 continue
 
             # ----------------------------------------------------
-            # GEO LOCATION
+            # LOCATION
             # ----------------------------------------------------
 
             lat = None
@@ -424,7 +509,13 @@ def fetch_rss(url, source_name, limit=8, only_relevant=False):
                     1
                 )[-1].lower()
 
-                if local in {"point", "where"} and node.text:
+                if (
+                    local in {
+                        "point",
+                        "where"
+                    }
+                    and node.text
+                ):
 
                     parts = (
                         node.text
@@ -433,33 +524,58 @@ def fetch_rss(url, source_name, limit=8, only_relevant=False):
                     )
 
                     if len(parts) >= 2:
-                        lat = _safe_float(parts[0])
-                        lon = _safe_float(parts[1])
+
+                        lat = _safe_float(
+                            parts[0]
+                        )
+
+                        lon = _safe_float(
+                            parts[1]
+                        )
+
                         break
 
-                if local in {"lat", "latitude"}:
-                    lat = _safe_float(node.text)
+                if local in {
+                    "lat",
+                    "latitude"
+                }:
+
+                    lat = _safe_float(
+                        node.text
+                    )
 
                 if local in {
                     "long",
                     "lon",
                     "longitude"
                 }:
-                    lon = _safe_float(node.text)
 
-            location_name, coords = find_location(
-                title,
-                description
+                    lon = _safe_float(
+                        node.text
+                    )
+
+            location_name, coords = (
+                find_location(
+                    title,
+                    description
+                )
             )
 
-            if lat is None or lon is None:
+            if (
+                lat is None
+                or
+                lon is None
+            ):
+
                 lat, lon = coords
 
             articles.append(
                 {
                     "title": title,
                     "link": link,
-                    "location_name": location_name,
+                    "location_name": (
+                        location_name
+                    ),
                     "lat": float(lat),
                     "lon": float(lon),
                     "source": source_name,
@@ -470,11 +586,11 @@ def fetch_rss(url, source_name, limit=8, only_relevant=False):
                         "Open original source for details."
                     ),
 
-                    # IMPORTANT:
-                    # GDACS / ReliefWeb are blue data feeds.
+                    # GDACS is blue.
                     "is_un_data": (
-                        source_name.upper().startswith("GDACS")
-                        or source_name.upper().startswith("RELIEFWEB")
+                        source_name
+                        .upper()
+                        .startswith("GDACS")
                     ),
                 }
             )
@@ -492,8 +608,13 @@ def fetch_rss(url, source_name, limit=8, only_relevant=False):
 # RELIEFWEB
 # ================================================================
 
-@st.cache_data(ttl=120, show_spinner=False)
-def fetch_reliefweb(limit=15):
+@st.cache_data(
+    ttl=120,
+    show_spinner=False
+)
+def fetch_reliefweb(
+    limit=15
+):
 
     articles = []
 
@@ -502,18 +623,28 @@ def fetch_reliefweb(limit=15):
         "crisis-command-streamlit"
     )
 
-    url = "https://api.reliefweb.int/v2/reports"
+    url = (
+        "https://api.reliefweb.int/"
+        "v2/reports"
+    )
 
     payload = {
         "limit": limit,
-        "sort": ["date:desc"],
+
+        "sort": [
+            "date:desc"
+        ],
+
         "preset": "latest",
+
         "query": {
             "value": (
-                "war OR conflict OR attack OR explosion "
-                "OR military OR missile"
+                "war OR conflict OR attack "
+                "OR explosion OR military "
+                "OR missile"
             )
         },
+
         "fields": {
             "include": [
                 "title",
@@ -522,18 +653,21 @@ def fetch_reliefweb(limit=15):
                 "source",
                 "date"
             ]
-        },
+        }
     }
 
     try:
 
         response = requests.post(
             url,
-            params={"appname": appname},
+            params={
+                "appname": appname
+            },
             json=payload,
             headers={
                 **REQUEST_HEADERS,
-                "Content-Type": "application/json"
+                "Content-Type":
+                    "application/json"
             },
             timeout=15
         )
@@ -607,14 +741,29 @@ def fetch_reliefweb(limit=15):
                 else None
             )
 
-            if lat is None or lon is None:
+            if (
+                lat is None
+                or
+                lon is None
+            ):
 
-                if country_name in GEO_DATABASE:
-                    lat, lon = GEO_DATABASE[
-                        country_name
-                    ]
+                if (
+                    country_name
+                    in GEO_DATABASE
+                ):
+
+                    lat, lon = (
+                        GEO_DATABASE[
+                            country_name
+                        ]
+                    )
+
                 else:
-                    lat, lon = 20.0, 0.0
+
+                    lat, lon = (
+                        20.0,
+                        0.0
+                    )
 
             source = fields.get(
                 "source"
@@ -629,7 +778,8 @@ def fetch_reliefweb(limit=15):
                     source,
                     dict
                 )
-                else "RELIEFWEB"
+                else
+                "RELIEFWEB"
             )
 
             date_value = fields.get(
@@ -644,42 +794,48 @@ def fetch_reliefweb(limit=15):
                     date_value,
                     dict
                 )
-                else str(
+                else
+                str(
                     date_value or ""
                 )
             )
 
             summary = (
-                "Live ReliefWeb operational intelligence update"
-                + (
-                    f" — {date_text[:19]}"
-                    if date_text
-                    else ""
-                )
-                + "."
+                "Live ReliefWeb "
+                "operational intelligence update"
             )
+
+            if date_text:
+                summary += (
+                    f" — {date_text[:19]}"
+                )
 
             articles.append(
                 {
                     "title": title,
+
                     "link": (
                         fields.get("url")
                         or
                         "https://reliefweb.int"
                     ),
+
                     "location_name": (
                         country_name
                         or
                         "Global"
                     ),
+
                     "lat": float(lat),
                     "lon": float(lon),
+
                     "source": str(
                         source_name
                     ).upper(),
+
                     "summary": summary,
 
-                    # Blue data feed.
+                    # ReliefWeb is blue.
                     "is_un_data": True,
                 }
             )
@@ -694,15 +850,20 @@ def fetch_reliefweb(limit=15):
 # USGS GEOJSON
 # ================================================================
 
-@st.cache_data(ttl=60, show_spinner=False)
-def fetch_usgs_geojson(limit=20):
+@st.cache_data(
+    ttl=60,
+    show_spinner=False
+)
+def fetch_usgs_geojson(
+    limit=20
+):
 
     articles = []
 
     url = (
         "https://earthquake.usgs.gov/"
-        "earthquakes/feed/v1.0/summary/"
-        "all_day.geojson"
+        "earthquakes/feed/v1.0/"
+        "summary/all_day.geojson"
     )
 
     try:
@@ -727,12 +888,17 @@ def fetch_usgs_geojson(limit=20):
                 or {}
             )
 
-            coords = (
+            geometry = (
                 feature.get("geometry")
                 or {}
-            ).get(
-                "coordinates"
-            ) or []
+            )
+
+            coords = (
+                geometry.get(
+                    "coordinates"
+                )
+                or []
+            )
 
             if len(coords) < 2:
                 continue
@@ -745,7 +911,11 @@ def fetch_usgs_geojson(limit=20):
                 coords[1]
             )
 
-            if lat is None or lon is None:
+            if (
+                lat is None
+                or
+                lon is None
+            ):
                 continue
 
             title = clean_text(
@@ -756,13 +926,6 @@ def fetch_usgs_geojson(limit=20):
 
             link = (
                 props.get("url")
-                or
-                data.get(
-                    "metadata",
-                    {}
-                ).get(
-                    "url"
-                )
                 or
                 "https://earthquake.usgs.gov/"
             )
@@ -781,25 +944,27 @@ def fetch_usgs_geojson(limit=20):
                 "time"
             )
 
-            time_text = (
-                time.strftime(
+            time_text = ""
+
+            if time_ms:
+
+                time_text = time.strftime(
                     "%Y-%m-%d %H:%M UTC",
                     time.gmtime(
                         time_ms / 1000
                     )
                 )
-                if time_ms
-                else ""
-            )
 
             summary = (
-                f"Magnitude {magnitude} — {place}"
-                + (
-                    f" — {time_text}"
-                    if time_text
-                    else ""
-                )
+                f"Magnitude {magnitude} "
+                f"— {place}"
             )
+
+            if time_text:
+
+                summary += (
+                    f" — {time_text}"
+                )
 
             articles.append(
                 {
@@ -811,7 +976,7 @@ def fetch_usgs_geojson(limit=20):
                     "source": "USGS",
                     "summary": summary,
 
-                    # Blue data feed.
+                    # USGS is blue.
                     "is_un_data": True,
                 }
             )
@@ -826,26 +991,34 @@ def fetch_usgs_geojson(limit=20):
 # USGS ATOM
 # ================================================================
 
-@st.cache_data(ttl=60, show_spinner=False)
-def fetch_usgs_atom(limit=12):
+@st.cache_data(
+    ttl=60,
+    show_spinner=False
+)
+def fetch_usgs_atom(
+    limit=12
+):
 
     articles = fetch_rss(
         (
             "https://earthquake.usgs.gov/"
-            "earthquakes/feed/v1.0/summary/"
-            "all_day.atom"
+            "earthquakes/feed/v1.0/"
+            "summary/all_day.atom"
         ),
+
         "USGS",
+
         limit=limit,
+
         only_relevant=False
     )
 
-    # Force USGS to blue/data classification.
     return [
         {
             **article,
             "is_un_data": True
         }
+
         for article in articles
     ]
 
@@ -859,27 +1032,38 @@ def fetch_live_media():
     all_articles = []
 
     feeds = [
+
         (
             "BBC (UK)",
-            "https://feeds.bbci.co.uk/news/rss.xml"
+            "https://feeds.bbci.co.uk/"
+            "news/rss.xml"
         ),
+
         (
             "SKY NEWS",
-            "https://feeds.skynews.com/feeds/rss/home.xml"
+            "https://feeds.skynews.com/"
+            "feeds/rss/home.xml"
         ),
+
         (
             "AL JAZEERA",
-            "https://www.aljazeera.com/xml/rss/all.xml"
+            "https://www.aljazeera.com/"
+            "xml/rss/all.xml"
         ),
+
         (
             "THE GUARDIAN",
-            "https://www.theguardian.com/world/rss"
+            "https://www.theguardian.com/"
+            "world/rss"
         ),
+
         (
             "FRANCE 24",
-            "https://www.france24.com/en/rss"
+            "https://www.france24.com/"
+            "en/rss"
         ),
     ]
+
 
     for source, url in feeds:
 
@@ -887,36 +1071,49 @@ def fetch_live_media():
             fetch_rss(
                 url,
                 source,
-                limit=3,
+                limit=8,
                 only_relevant=True
             )
         )
 
-    # De-duplicate headlines.
+
+    # ------------------------------------------------------------
+    # REMOVE DUPLICATE HEADLINES
+    # ------------------------------------------------------------
+
     seen = set()
+
     unique = []
 
     for article in all_articles:
 
-        key = article[
-            "title"
-        ].strip().lower()
+        key = (
+            article["title"]
+            .strip()
+            .lower()
+        )
 
         if key in seen:
             continue
 
         seen.add(key)
-        unique.append(article)
+
+        unique.append(
+            article
+        )
+
 
     return unique
 
 
 # ================================================================
-# EXECUTE INGESTION PIPELINES
+# FETCH ALL DATA
 # ================================================================
 
 feed_articles = []
 
+
+# GDACS
 feed_articles.extend(
     fetch_rss(
         FEED_CONFIG[0]["feed_url"],
@@ -925,6 +1122,8 @@ feed_articles.extend(
     )
 )
 
+
+# GDACS NEW
 feed_articles.extend(
     fetch_rss(
         FEED_CONFIG[1]["feed_url"],
@@ -933,25 +1132,32 @@ feed_articles.extend(
     )
 )
 
+
+# ReliefWeb
 feed_articles.extend(
     fetch_reliefweb(
         limit=15
     )
 )
 
+
+# USGS GeoJSON
 feed_articles.extend(
     fetch_usgs_geojson(
         limit=20
     )
 )
 
+
+# USGS Atom
 feed_articles.extend(
     fetch_usgs_atom(
         limit=12
     )
 )
 
-# Red/media feeds.
+
+# RED MEDIA FEEDS
 feed_articles.extend(
     fetch_live_media()
 )
@@ -962,7 +1168,9 @@ feed_articles.extend(
 # ================================================================
 
 seen = set()
+
 mapped_alerts = []
+
 
 for article in feed_articles:
 
@@ -970,10 +1178,12 @@ for article in feed_articles:
         article["title"]
         .strip()
         .lower(),
+
         round(
             article["lat"],
             3
         ),
+
         round(
             article["lon"],
             3
@@ -994,38 +1204,48 @@ for article in feed_articles:
 # ARTICLE VIEW
 # ================================================================
 
-requested_article = st.query_params.get(
-    "article"
+requested_article = (
+    st.query_params.get(
+        "article"
+    )
 )
+
 
 if requested_article is not None:
 
     try:
+
         article_idx = int(
             requested_article
         )
+
     except (
         TypeError,
         ValueError
     ):
+
         article_idx = None
 
+
     article = (
+
         mapped_alerts[
             article_idx
         ]
+
         if (
             article_idx is not None
             and
-            0 <= article_idx < len(
-                mapped_alerts
-            )
+            0 <= article_idx
+            < len(mapped_alerts)
         )
+
         else None
     )
 
+
     # ------------------------------------------------------------
-    # ARTICLE PAGE STYLES
+    # ARTICLE PAGE CSS
     # ------------------------------------------------------------
 
     st.markdown(
@@ -1037,106 +1257,180 @@ if requested_article is not None:
         .stAppViewBlockContainer,
         .main,
         .main .block-container {
-            padding: 0px !important;
-            margin: 0px !important;
+
+            padding: 0 !important;
+            margin: 0 !important;
+
             max-width: 100% !important;
             width: 100% !important;
-            background-color: #111827 !important;
+
+            background-color:
+                #111827 !important;
         }
 
+
         div[data-testid="stButton"] {
+
             position: fixed !important;
+
             top: 40px !important;
             left: 40px !important;
+
             z-index: 2147483647 !important;
+
             width: auto !important;
         }
 
-        div[data-testid="stButton"] button[kind="secondary"] {
-            background-color: #181d29 !important;
+
+        div[data-testid="stButton"]
+        button {
+
+            background-color:
+                #181d29 !important;
+
             color: #ffffff !important;
-            border: 2px solid rgba(255,255,255,.18) !important;
+
+            border:
+                2px solid
+                rgba(255,255,255,.18)
+                !important;
+
             border-radius: 8px !important;
-            padding: 10px 20px !important;
+
+            padding:
+                10px 20px !important;
+
             font-size: 13px !important;
+
             font-weight: 800 !important;
-            font-family: Arial, sans-serif !important;
-            box-shadow: 0 6px 20px rgba(0,0,0,.5) !important;
-            cursor: pointer !important;
+
+            font-family:
+                Arial,
+                sans-serif !important;
+
+            box-shadow:
+                0 6px 20px
+                rgba(0,0,0,.5)
+                !important;
         }
 
-        div[data-testid="stButton"] button[kind="secondary"]:hover {
-            background-color: #232a3b !important;
-            border-color: #75b9f5 !important;
-            color: #75b9f5 !important;
-        }
 
         .article-wrap {
+
             max-width: 680px;
-            margin: 120px auto 40px;
-            padding: 0 24px;
-            font-family: Arial, sans-serif;
+
+            margin:
+                120px auto 40px;
+
+            padding:
+                0 24px;
+
+            font-family:
+                Arial,
+                sans-serif;
+
             color: #e5e7eb;
         }
 
+
         .article-source-pill {
+
             display: inline-block;
-            background: #3b70b4;
-            color: #fff;
+
+            background:
+                #3b70b4;
+
+            color: white;
+
             border-radius: 5px;
-            padding: 5px 10px;
+
+            padding:
+                5px 10px;
+
             font-size: 11px;
+
             font-weight: 800;
-            letter-spacing: .3px;
+
             margin-bottom: 12px;
         }
 
+
         .article-location {
+
             color: #75b9f5;
+
             font-size: 13px;
+
             font-weight: 900;
-            text-transform: uppercase;
+
+            text-transform:
+                uppercase;
+
             letter-spacing: 1px;
+
             margin-bottom: 8px;
         }
 
+
         .article-title {
-            color: #fff;
+
+            color: white;
+
             font-size: 28px;
+
             font-weight: 800;
+
             line-height: 1.25;
+
             margin-bottom: 18px;
         }
 
+
         .article-summary {
+
             color: #aab5c7;
+
             font-size: 16px;
+
             line-height: 1.6;
+
             margin-bottom: 30px;
         }
 
-        .article-open-btn {
-            display: inline-block;
-            background: #3182ce;
-            color: #fff;
-            text-decoration: none !important;
-            font-weight: 800;
-            font-size: 14px;
-            padding: 12px 24px;
-            border-radius: 8px;
-            border: none;
-            cursor: pointer;
-            font-family: Arial, sans-serif;
-        }
 
-        .article-open-btn:hover {
-            background: #2c6cb0;
+        .article-open-btn {
+
+            display: inline-block;
+
+            background:
+                #3182ce;
+
+            color: white;
+
+            text-decoration:
+                none !important;
+
+            font-weight: 800;
+
+            font-size: 14px;
+
+            padding:
+                12px 24px;
+
+            border-radius: 8px;
+
+            font-family:
+                Arial,
+                sans-serif;
+
+            cursor: pointer;
         }
 
         </style>
         """),
         unsafe_allow_html=True
     )
+
 
     # ------------------------------------------------------------
     # BACK BUTTON
@@ -1148,32 +1442,30 @@ if requested_article is not None:
     ):
 
         st.query_params.clear()
+
         st.rerun()
 
+
     # ------------------------------------------------------------
-    # ARTICLE CONTENT
+    # ARTICLE
     # ------------------------------------------------------------
 
     if article:
 
-        open_article_js = (
-            "window.location.href = "
-            + json.dumps(
-                str(
-                    article["link"]
-                )
-            )
-            + ";"
+        article_url = str(
+            article["link"]
         )
 
         st.markdown(
             '<div class="article-wrap">'
+
             f'<div class="article-source-pill">'
             f'{html.escape(str(article["source"]))}'
             f'</div>'
 
             f'<div class="article-location">'
-            f'📍 {html.escape(str(article["location_name"]))}'
+            f'📍 '
+            f'{html.escape(str(article["location_name"]))}'
             f'</div>'
 
             f'<div class="article-title">'
@@ -1184,12 +1476,15 @@ if requested_article is not None:
             f'{html.escape(str(article["summary"]))}'
             f'</div>'
 
-            f'<button class="article-open-btn" '
-            f'onclick="{html.escape(open_article_js, quote=True)}">'
+            f'<a '
+            f'class="article-open-btn" '
+            f'href="{html.escape(article_url)}" '
+            f'target="_blank">'
             f'Open Full Article Source ↗'
-            f'</button>'
+            f'</a>'
 
             '</div>',
+
             unsafe_allow_html=True
         )
 
@@ -1197,54 +1492,53 @@ if requested_article is not None:
 
         st.markdown(
             '<div class="article-wrap">'
+
             '<div class="article-title">'
             'Article not found'
             '</div>'
 
             '<div class="article-summary">'
-            'This item may have expired from the live '
-            'tracking logs. Head back to the map view '
-            'to see current parameters.'
+            'This item may have expired from the '
+            'live tracking logs.'
             '</div>'
 
             '</div>',
+
             unsafe_allow_html=True
         )
+
 
     st.stop()
 
 
 # ================================================================
-# RED-PIN NEWS TICKER
+# RED-PIN TICKER DATA
 # ================================================================
 #
-# IMPORTANT:
+# ONLY NON-BLUE ITEMS.
 #
-# ONLY items where:
-#
-#     is_un_data == False
-#
-# are placed into the ticker.
+# is_un_data == False
 #
 # Therefore:
 #
-#   🔴 RED  = media / war / conflict headline
-#   🔵 BLUE = GDACS / ReliefWeb / USGS data
-#
-# Blue data remains on the map but NEVER appears in this ticker.
+#   RED = ticker
+#   BLUE = map only
 # ================================================================
 
-source_alert_items = []
+ticker_items = []
 
 
-for alert_idx, item in enumerate(mapped_alerts):
+for alert_idx, item in enumerate(
+    mapped_alerts
+):
 
     # ------------------------------------------------------------
-    # ONLY RED PINS
+    # CRITICAL FILTER
     # ------------------------------------------------------------
 
     if item.get("is_un_data"):
         continue
+
 
     title_text = BeautifulSoup(
         str(
@@ -1256,9 +1550,11 @@ for alert_idx, item in enumerate(mapped_alerts):
         "html.parser"
     ).get_text()
 
+
     title_text = clean_text(
         title_text
     )
+
 
     source_text = clean_text(
         str(
@@ -1269,6 +1565,7 @@ for alert_idx, item in enumerate(mapped_alerts):
         )
     )
 
+
     location_text = clean_text(
         str(
             item.get(
@@ -1278,81 +1575,28 @@ for alert_idx, item in enumerate(mapped_alerts):
         )
     )
 
+
     if not title_text:
         continue
 
-    link = f"?article={alert_idx}"
 
-    source_alert_items.append(
-        '<div class="source-row">'
+    ticker_items.append(
+        {
+            "title": title_text,
 
-        '<div class="source-headline-wrap">'
+            "source": source_text,
 
-        f'<span class="source-name">'
-        f'{html.escape(source_text)}'
-        f'</span>'
+            "location": location_text,
 
-        f'<span class="source-location">'
-        f'📍 {html.escape(location_text)}'
-        f'</span>'
-
-        '</div>'
-
-        '<div class="source-headline">'
-
-        f'<a href="{link}" target="_top">'
-        f'{html.escape(title_text)} ↗'
-        f'</a>'
-
-        '</div>'
-
-        '</div>'
+            "url": (
+                f"?article={alert_idx}"
+            )
+        }
     )
 
 
 # ================================================================
-# EMPTY RED FEED STATE
-# ================================================================
-
-if not source_alert_items:
-
-    source_alert_items = [
-
-        '<div class="source-row source-row-empty">'
-
-        '<div class="source-headline-wrap">'
-
-        '<span class="source-name">'
-        'LIVE FEEDS'
-        '</span>'
-
-        '<span class="source-location">'
-        '📡 MONITORING'
-        '</span>'
-
-        '</div>'
-
-        '<div class="source-headline">'
-
-        '<span>'
-        'No live red-pin headlines available.'
-        '</span>'
-
-        '</div>'
-
-        '</div>'
-    ]
-
-
-# ================================================================
-# FRIENDSHIP BANNER
-# ================================================================
-#
-# Expected file:
-#
-#     assets/infriendshipwith.png
-#
-# The banner is shown AFTER THE LAST RED HEADLINE.
+# BANNER IMAGE
 # ================================================================
 
 BANNER_PATH = (
@@ -1362,21 +1606,10 @@ BANNER_PATH = (
 )
 
 
-def build_banner_html():
+banner_data = ""
 
-    if not BANNER_PATH.exists():
 
-        return (
-            '<div class="source-banner '
-            'source-banner-missing">'
-
-            '<span>'
-            'IN FRIENDSHIP WITH: '
-            'AIR BRUSSELS TIMES'
-            '</span>'
-
-            '</div>'
-        )
+if BANNER_PATH.exists():
 
     try:
 
@@ -1384,359 +1617,346 @@ def build_banner_html():
             BANNER_PATH.read_bytes()
         )
 
-        banner_b64 = base64.b64encode(
-            banner_bytes
-        ).decode("ascii")
-
-        return (
-            '<div class="source-banner">'
-
-            f'<img '
-            f'src="data:image/png;base64,{banner_b64}" '
-            f'alt="In friendship with Air Brussels Times">'
-            
-            '</div>'
+        banner_data = (
+            "data:image/png;base64,"
+            +
+            base64.b64encode(
+                banner_bytes
+            ).decode("ascii")
         )
 
     except Exception:
 
-        return (
-            '<div class="source-banner '
-            'source-banner-missing">'
-
-            '<span>'
-            'IN FRIENDSHIP WITH: '
-            'AIR BRUSSELS TIMES'
-            '</span>'
-
-            '</div>'
-        )
-
-
-banner_html = build_banner_html()
+        banner_data = ""
 
 
 # ================================================================
-# FINAL TICKER SEQUENCE
+# TICKER COMPONENT
 # ================================================================
 #
-# Example:
+# THIS IS THE IMPORTANT PART.
 #
-#   [RED 1]
-#   [RED 2]
-#   [RED 3]
-#   [RED 4]
-#   [BANNER]
+# st.components.v1.html() creates a real browser component.
 #
-# Then:
-#
-#   [RED 1]
-#   [RED 2]
-#   ...
-#
-# This continues indefinitely.
+# JavaScript inside this component WILL execute.
 # ================================================================
 
-ticker_items = (
-    source_alert_items
-    + [banner_html]
+ticker_json = json.dumps(
+    ticker_items,
+    ensure_ascii=False
 )
 
 
-# ================================================================
-# TICKER CSS
-# ================================================================
-
-st.markdown(
-    _flatten_html("""
-    <style>
-
-    .source-access {
-        position: fixed !important;
-        left: 0 !important;
-        right: 0 !important;
-        bottom: 0 !important;
-
-        width: 100vw !important;
-        height: 190px !important;
-
-        box-sizing: border-box !important;
-        overflow: hidden !important;
-
-        z-index: 2147483000 !important;
-
-        background: #111827;
-
-        border-top:
-            1px solid
-            rgba(255,255,255,.12);
-
-        margin: 0;
-
-        padding:
-            9px
-            22px
-            12px
-            22px;
-
-        color: #e5e7eb;
-
-        font-family: Arial, sans-serif;
-
-        box-shadow:
-            0 -6px 20px
-            rgba(0,0,0,.4);
-
-        display: flex;
-        flex-direction: column;
-    }
-
-
-    .source-access-head {
-        display: flex;
-
-        justify-content: space-between;
-        align-items: center;
-
-        font-size: 11px;
-        font-weight: 900;
-
-        letter-spacing: .8px;
-
-        text-transform: uppercase;
-
-        margin-bottom: 6px;
-
-        flex: 0 0 auto;
-    }
-
-
-    .source-access-body {
-        position: relative;
-
-        flex: 1 1 auto;
-
-        overflow: hidden;
-
-        opacity: 1;
-
-        transition:
-            opacity 0.35s ease;
-
-        display: flex;
-
-        align-items: center;
-
-        justify-content: center;
-    }
-
-
-    .source-access-body.source-fading {
-        opacity: 0;
-    }
-
-
-    /* ============================================================
-       NEWS ROW
-       ============================================================ */
-
-    .source-row {
-        display: block;
-
-        width: 100%;
-
-        padding: 0;
-
-        box-sizing: border-box;
-
-        font-size: 12px;
-    }
-
-
-    .source-headline-wrap {
-        display: flex;
-
-        align-items: center;
-
-        gap: 10px;
-
-        margin-bottom: 4px;
-    }
-
-
-    .source-name {
-        color: #ffffff;
-
-        background: #3b70b4;
-
-        border-radius: 4px;
-
-        padding:
-            3px
-            7px;
-
-        font-size: 9px;
-
-        font-weight: 900;
-
-        letter-spacing: .5px;
-
-        text-transform: uppercase;
-
-        white-space: nowrap;
-    }
-
-
-    .source-location {
-        color: #ff8b8b;
-
-        font-size: 9px;
-
-        font-weight: 800;
-
-        letter-spacing: .5px;
-
-        text-transform: uppercase;
-
-        white-space: nowrap;
-
-        overflow: hidden;
-
-        text-overflow: ellipsis;
-    }
-
-
-    .source-headline {
-        width: 100%;
-
-        white-space: normal;
-
-        line-height: 1.35;
-    }
-
-
-    .source-headline a,
-    .source-headline a:visited {
-
-        color: #ffffff !important;
-
-        text-decoration: none !important;
-
-        font-size: 15px;
-
-        font-weight: 800;
-
-        line-height: 1.35;
-    }
-
-
-    .source-headline a:hover {
-        color: #75b9f5 !important;
-    }
-
-
-    /* ============================================================
-       FRIENDSHIP BANNER
-       ============================================================ */
-
-    .source-banner {
-
-        width: 100%;
-        height: 100%;
-
-        display: flex;
-
-        align-items: center;
-
-        justify-content: center;
-
-        overflow: hidden;
-
-        box-sizing: border-box;
-    }
-
-
-    .source-banner img {
-
-        display: block;
-
-        width: 100%;
-
-        max-width: 100%;
-
-        height: auto;
-
-        max-height: 100%;
-
-        object-fit: contain;
-    }
-
-
-    .source-banner-missing {
-
-        width: 100%;
-        height: 100%;
-
-        display: flex;
-
-        align-items: center;
-
-        justify-content: center;
-
-        background: #ffffff;
-
-        color: #202938;
-
-        font-family: Georgia, serif;
-
-        font-size: 26px;
-
-        font-weight: 700;
-
-        text-align: center;
-    }
-
-
-    .source-row-empty .source-name {
-        background: #4a5568;
-    }
-
-
-    .source-row-empty .source-headline {
-        color: #aab5c7;
-
-        font-size: 12px;
-    }
-
-    </style>
-    """),
-    unsafe_allow_html=True
+banner_json = json.dumps(
+    banner_data
 )
 
 
-# ================================================================
-# TICKER HTML + JAVASCRIPT
-# ================================================================
-#
-# Every item is shown for 5 seconds.
-#
-# After the final RED headline:
-#
-#       RED LAST
-#          ↓
-#       BANNER
-#          ↓
-#       RED FIRST
-#
-# The sequence loops forever.
-# ================================================================
+components.html(
 
-st.markdown(
-    _flatten_html(
-        f"""
-        <div class="source-access">
+    f"""
+    <!DOCTYPE html>
 
-            <div class="source-access-head">
+    <html>
+
+    <head>
+
+        <meta charset="UTF-8">
+
+        <style>
+
+            * {{
+                box-sizing: border-box;
+            }}
+
+
+            html,
+            body {{
+                margin: 0;
+                padding: 0;
+
+                width: 100%;
+                height: 100%;
+
+                overflow: hidden;
+
+                background:
+                    #111827;
+
+                font-family:
+                    Arial,
+                    sans-serif;
+            }}
+
+
+            /* ====================================================
+               TICKER
+               ==================================================== */
+
+            #ticker {{
+
+                position: relative;
+
+                width: 100%;
+                height: 100%;
+
+                overflow: hidden;
+
+                background:
+                    #111827;
+
+                color: white;
+
+                border-top:
+                    1px solid
+                    rgba(255,255,255,.12);
+
+                box-shadow:
+                    0 -5px 18px
+                    rgba(0,0,0,.35);
+            }}
+
+
+            /* ====================================================
+               HEADER
+               ==================================================== */
+
+            #ticker-header {{
+
+                position: absolute;
+
+                left: 0;
+                right: 0;
+                top: 0;
+
+                height: 34px;
+
+                display: flex;
+
+                align-items: center;
+
+                justify-content:
+                    space-between;
+
+                padding:
+                    0 20px;
+
+                font-size: 11px;
+
+                font-weight: 900;
+
+                letter-spacing:
+                    .8px;
+
+                text-transform:
+                    uppercase;
+
+                color:
+                    #e5e7eb;
+
+                z-index: 10;
+            }}
+
+
+            /* ====================================================
+               CONTENT
+               ==================================================== */
+
+            #ticker-content {{
+
+                position: absolute;
+
+                left: 0;
+                right: 0;
+
+                top: 34px;
+                bottom: 0;
+
+                padding:
+                    12px 22px;
+
+                display: flex;
+
+                align-items: center;
+
+                justify-content: center;
+
+                opacity: 1;
+
+                transition:
+                    opacity .35s ease;
+            }}
+
+
+            #ticker-content.fade {{
+                opacity: 0;
+            }}
+
+
+            /* ====================================================
+               HEADLINE
+               ==================================================== */
+
+            .headline {{
+                width: 100%;
+            }}
+
+
+            .headline-top {{
+
+                display: flex;
+
+                align-items: center;
+
+                gap: 10px;
+
+                margin-bottom: 6px;
+            }}
+
+
+            .source {{
+
+                display: inline-block;
+
+                padding:
+                    4px 8px;
+
+                border-radius: 4px;
+
+                background:
+                    #3b70b4;
+
+                color: white;
+
+                font-size: 9px;
+
+                font-weight: 900;
+
+                letter-spacing:
+                    .5px;
+
+                text-transform:
+                    uppercase;
+
+                white-space: nowrap;
+            }}
+
+
+            .location {{
+
+                color:
+                    #ff8b8b;
+
+                font-size: 9px;
+
+                font-weight: 800;
+
+                letter-spacing:
+                    .5px;
+
+                text-transform:
+                    uppercase;
+
+                overflow: hidden;
+
+                text-overflow:
+                    ellipsis;
+
+                white-space: nowrap;
+            }}
+
+
+            .title {{
+
+                color: white;
+
+                font-size: 15px;
+
+                font-weight: 800;
+
+                line-height: 1.35;
+            }}
+
+
+            .title a {{
+
+                color: white;
+
+                text-decoration:
+                    none;
+            }}
+
+
+            .title a:hover {{
+                color:
+                    #75b9f5;
+            }}
+
+
+            /* ====================================================
+               BANNER
+               ==================================================== */
+
+            .banner {{
+
+                width: 100%;
+
+                height: 100%;
+
+                display: flex;
+
+                align-items: center;
+
+                justify-content: center;
+
+                background:
+                    white;
+
+                overflow: hidden;
+            }}
+
+
+            .banner img {{
+
+                display: block;
+
+                width: 100%;
+
+                height: auto;
+
+                max-height: 100%;
+
+                object-fit:
+                    contain;
+            }}
+
+
+            .banner-fallback {{
+
+                color:
+                    #202938;
+
+                font-family:
+                    Georgia,
+                    serif;
+
+                font-size: 26px;
+
+                font-weight: 700;
+
+                text-align: center;
+            }}
+
+        </style>
+
+    </head>
+
+
+    <body>
+
+        <div id="ticker">
+
+            <div id="ticker-header">
 
                 <span>
                     🛰️ LIVE DATA SOURCES
@@ -1749,108 +1969,351 @@ st.markdown(
             </div>
 
 
-            <div
-                class="source-access-body"
-                id="source-ticker-body"
-            >
-                {ticker_items[0]}
-            </div>
+            <div id="ticker-content"></div>
 
         </div>
 
 
         <script>
 
-        (function() {{
+            /* ====================================================
+               DATA FROM STREAMLIT
+               ==================================================== */
 
-            var items =
-                {json.dumps(ticker_items)};
+            const headlines =
+                {ticker_json};
 
-            var idx = 0;
 
-            var el =
+            const banner =
+                {banner_json};
+
+
+            /* ====================================================
+               TIMING
+               ==================================================== */
+
+            const DISPLAY_TIME = 5000;
+
+            const FADE_TIME = 350;
+
+
+            /* ====================================================
+               STATE
+               ==================================================== */
+
+            let currentIndex = 0;
+
+
+            const content =
                 document.getElementById(
-                    'source-ticker-body'
+                    "ticker-content"
                 );
 
 
-            if (!el || items.length <= 1) {{
-                return;
+            /* ====================================================
+               RENDER HEADLINE
+               ==================================================== */
+
+            function renderHeadline(item) {{
+
+                const wrapper =
+                    document.createElement(
+                        "div"
+                    );
+
+                wrapper.className =
+                    "headline";
+
+
+                const top =
+                    document.createElement(
+                        "div"
+                    );
+
+                top.className =
+                    "headline-top";
+
+
+                const source =
+                    document.createElement(
+                        "span"
+                    );
+
+                source.className =
+                    "source";
+
+                source.textContent =
+                    item.source;
+
+
+                const location =
+                    document.createElement(
+                        "span"
+                    );
+
+                location.className =
+                    "location";
+
+                location.textContent =
+                    "📍 " +
+                    item.location;
+
+
+                top.appendChild(
+                    source
+                );
+
+                top.appendChild(
+                    location
+                );
+
+
+                const title =
+                    document.createElement(
+                        "div"
+                    );
+
+                title.className =
+                    "title";
+
+
+                const link =
+                    document.createElement(
+                        "a"
+                    );
+
+                link.href =
+                    item.url;
+
+                link.target =
+                    "_top";
+
+                link.textContent =
+                    item.title +
+                    " ↗";
+
+
+                title.appendChild(
+                    link
+                );
+
+
+                wrapper.appendChild(
+                    top
+                );
+
+                wrapper.appendChild(
+                    title
+                );
+
+
+                return wrapper;
             }}
 
 
-            /*
-             * Each news headline and the banner
-             * stays visible for 5 seconds.
-             */
-            var DISPLAY_TIME = 5000;
+            /* ====================================================
+               RENDER BANNER
+               ==================================================== */
+
+            function renderBanner() {{
+
+                const wrapper =
+                    document.createElement(
+                        "div"
+                    );
+
+                wrapper.className =
+                    "banner";
 
 
-            /*
-             * Fade transition duration.
-             */
-            var FADE_TIME = 350;
+                if (banner) {{
+
+                    const image =
+                        document.createElement(
+                            "img"
+                        );
+
+                    image.src =
+                        banner;
+
+                    image.alt =
+                        "In friendship with Air Brussels Times";
 
 
-            setInterval(function() {{
+                    wrapper.appendChild(
+                        image
+                    );
 
-                /*
-                 * Fade current item out.
-                 */
-                el.classList.add(
-                    'source-fading'
+                }} else {{
+
+                    const fallback =
+                        document.createElement(
+                            "div"
+                        );
+
+                    fallback.className =
+                        "banner-fallback";
+
+                    fallback.textContent =
+                        "In friendship with: Air Brussels Times";
+
+
+                    wrapper.appendChild(
+                        fallback
+                    );
+                }}
+
+
+                return wrapper;
+            }}
+
+
+            /* ====================================================
+               DISPLAY CURRENT ITEM
+               ==================================================== */
+
+            function displayCurrent() {{
+
+                content.classList.add(
+                    "fade"
                 );
 
 
-                setTimeout(function() {{
+                setTimeout(
+                    function() {{
 
-                    /*
-                     * Move to the next item.
-                     *
-                     * The modulo operation means:
-                     *
-                     * LAST ITEM -> FIRST ITEM
-                     */
-                    idx =
-                        (idx + 1)
-                        % items.length;
+                        content.innerHTML = "";
 
 
-                    /*
-                     * Replace the ticker content.
-                     */
-                    el.innerHTML =
-                        items[idx];
+                        /*
+                         * Headlines first.
+                         */
+                        if (
+                            currentIndex <
+                            headlines.length
+                        ) {{
+
+                            content.appendChild(
+                                renderHeadline(
+                                    headlines[
+                                        currentIndex
+                                    ]
+                                )
+                            );
+
+                        }}
 
 
-                    /*
-                     * Fade the new item in.
-                     */
-                    el.classList.remove(
-                        'source-fading'
-                    );
+                        /*
+                         * Banner after the final
+                         * red headline.
+                         */
+                        else {{
 
-                }}, FADE_TIME);
+                            content.appendChild(
+                                renderBanner()
+                            );
+                        }}
 
-            }}, DISPLAY_TIME);
 
-        }})();
+                        content.classList.remove(
+                            "fade"
+                        );
+
+                    }},
+                    FADE_TIME
+                );
+            }}
+
+
+            /* ====================================================
+               INITIAL DISPLAY
+               ==================================================== */
+
+            if (
+                headlines.length > 0
+            ) {{
+
+                content.appendChild(
+                    renderHeadline(
+                        headlines[0]
+                    )
+                );
+
+            }} else {{
+
+                content.appendChild(
+                    renderBanner()
+                );
+            }}
+
+
+            /* ====================================================
+               COMPLETE CYCLE
+               ====================================================
+               
+               Example:
+               
+               headlines.length = 5
+               
+               index 0 = headline 1
+               index 1 = headline 2
+               index 2 = headline 3
+               index 3 = headline 4
+               index 4 = headline 5
+               index 5 = banner
+               index 6 = back to headline 1
+               ==================================================== */
+
+            const totalItems =
+                headlines.length + 1;
+
+
+            setInterval(
+                function() {{
+
+                    currentIndex++;
+
+
+                    if (
+                        currentIndex >=
+                        totalItems
+                    ) {{
+
+                        currentIndex = 0;
+                    }}
+
+
+                    displayCurrent();
+
+                }},
+                DISPLAY_TIME
+            );
 
         </script>
-        """
-    ),
-    unsafe_allow_html=True
+
+    </body>
+
+    </html>
+    """,
+
+    height=190,
+
+    scrolling=False
 )
 
 
 # ================================================================
-# MAP CANVAS
+# MAP
 # ================================================================
 
 live_pin_items = []
 
 
-for alert_idx, item in enumerate(
+for (
+    alert_idx,
+    item
+) in enumerate(
     mapped_alerts
 ):
 
@@ -1883,32 +2346,41 @@ for alert_idx, item in enumerate(
         TypeError,
         ValueError
     ):
+
         continue
 
 
 # ================================================================
-# MAP
+# FOLIUM MAP
 # ================================================================
 
 m = folium.Map(
+
     location=[
         20.0,
         0.0
     ],
+
     zoom_start=2,
+
     min_zoom=2,
+
     max_bounds=True,
+
     zoom_control=False,
+
     scrollWheelZoom=True,
+
     touchZoom=True
 )
 
 
 # ================================================================
-# MAP TILES
+# DARK MAP TILES
 # ================================================================
 
 folium.TileLayer(
+
     tiles=(
         "https://{s}.basemaps.cartocdn.com/"
         "dark_all/{z}/{x}/{y}{r}.png"
@@ -1936,16 +2408,21 @@ m.get_root().html.add_child(
     folium.Element(
         """
         <style>
+
             html,
             body {
-                background: #262626 !important;
+                background:
+                    #262626 !important;
+
                 margin: 0;
                 padding: 0;
             }
 
             .leaflet-container {
-                background: #262626 !important;
+                background:
+                    #262626 !important;
             }
+
         </style>
         """
     )
@@ -1953,7 +2430,7 @@ m.get_root().html.add_child(
 
 
 # ================================================================
-# MAP PIN CLICK HANDLERS
+# MARKERS
 # ================================================================
 
 marker_click_scripts = []
@@ -1967,18 +2444,18 @@ for (
 ) in live_pin_items:
 
     # ------------------------------------------------------------
-    # BLUE VS RED
+    # RED / BLUE
     # ------------------------------------------------------------
 
     if item["is_un_data"]:
 
-        m_color = "#3182ce"
-        b_color = "#63b3ed"
+        marker_color = "#3182ce"
+        border_color = "#63b3ed"
 
     else:
 
-        m_color = "#ff4b4b"
-        b_color = "#ff8080"
+        marker_color = "#ff4b4b"
+        border_color = "#ff8080"
 
 
     # ------------------------------------------------------------
@@ -1989,18 +2466,18 @@ for (
 
         '<div '
         'style="'
-        'font-family:sans-serif; '
-        'font-size:12px; '
-        'width:240px; '
-        'color:#1a1f2c; '
+        'font-family:sans-serif;'
+        'font-size:12px;'
+        'width:240px;'
+        'color:#1a1f2c;'
         'line-height:1.4;'
         '">'
 
         '<span '
         'style="'
-        'color:#718096; '
-        'font-weight:800; '
-        'font-size:10px; '
+        'color:#718096;'
+        'font-weight:800;'
+        'font-size:10px;'
         'text-transform:uppercase;'
         '">'
 
@@ -2017,10 +2494,10 @@ for (
         f'href="?article={alert_idx}" '
         f'target="_top" '
         f'style="'
-        f'text-decoration:none; '
-        f'font-weight:700; '
-        f'color:{m_color}; '
-        f'display:inline-block; '
+        f'text-decoration:none;'
+        f'font-weight:700;'
+        f'color:{marker_color};'
+        f'display:inline-block;'
         f'margin-top:4px;'
         f'">'
 
@@ -2033,7 +2510,7 @@ for (
 
 
     # ------------------------------------------------------------
-    # CIRCLE MARKER
+    # MARKER
     # ------------------------------------------------------------
 
     marker = folium.CircleMarker(
@@ -2054,15 +2531,15 @@ for (
             max_width=280
         ),
 
-        color=b_color,
+        color=border_color,
 
         fill=True,
 
-        fill_color=m_color,
+        fill_color=marker_color,
 
         fill_opacity=0.75
-
     )
+
 
     marker.add_to(m)
 
@@ -2083,7 +2560,7 @@ for (
         f"{m.get_name()}.getZoom(), "
         f"6"
         f"), "
-        f"{{duration: 0.75}}"
+        f"{{duration:0.75}}"
         f");"
 
         f"}}"
@@ -2092,7 +2569,7 @@ for (
 
 
 # ================================================================
-# DEFERRED MARKER CLICK HANDLERS
+# DEFERRED MARKER EVENTS
 # ================================================================
 
 if marker_click_scripts:
@@ -2100,7 +2577,7 @@ if marker_click_scripts:
     deferred_click_script = (
 
         "document.addEventListener("
-        "'DOMContentLoaded', "
+        "'DOMContentLoaded',"
         "function(){"
 
         +
@@ -2112,72 +2589,82 @@ if marker_click_scripts:
         "});"
     )
 
+
     m.get_root().html.add_child(
         folium.Element(
             "<script>"
-            + deferred_click_script
-            + "</script>"
+            +
+            deferred_click_script
+            +
+            "</script>"
         )
     )
 
 
 # ================================================================
-# DEFAULT MAP FOCUS
+# MAP FOCUS
 # ================================================================
 
 focus_pin_items = [
 
     item_tuple
 
-    for item_tuple in live_pin_items
+    for item_tuple
+    in live_pin_items
 
     if not item_tuple[1]["is_un_data"]
-
 ]
 
 
-# If there are no red pins, use all live pins.
 if not focus_pin_items:
 
-    focus_pin_items = live_pin_items
+    focus_pin_items = (
+        live_pin_items
+    )
 
 
 # ================================================================
-# FIT MAP TO PINS
+# FIT MAP
 # ================================================================
 
 if live_pin_items:
 
     lats = [
         lat
-        for _, _, lat, _
+        for (
+            _,
+            _,
+            lat,
+            _
+        )
         in focus_pin_items
     ]
+
 
     lons = [
         lon
-        for _, _, _, lon
+        for (
+            _,
+            _,
+            _,
+            lon
+        )
         in focus_pin_items
     ]
 
 
-    # ------------------------------------------------------------
-    # SINGLE PIN
-    # ------------------------------------------------------------
-
-    if len(focus_pin_items) == 1:
+    if len(
+        focus_pin_items
+    ) == 1:
 
         m.location = [
             lats[0],
             lons[0]
         ]
 
-        m.options["zoom"] = 8
-
-
-    # ------------------------------------------------------------
-    # MULTIPLE PINS
-    # ------------------------------------------------------------
+        m.options[
+            "zoom"
+        ] = 8
 
     else:
 
@@ -2187,18 +2674,21 @@ if live_pin_items:
         west = min(lons)
         east = max(lons)
 
-        raw_span = east - west
 
-        lat_span = north - south
+        lat_span = (
+            north - south
+        )
 
-        lon_span = raw_span
+        lon_span = (
+            east - west
+        )
 
 
-        # Tight map padding.
         lat_pad = max(
             1.0,
             lat_span * 0.08
         )
+
 
         lon_pad = max(
             1.5,
@@ -2211,6 +2701,7 @@ if live_pin_items:
             south - lat_pad
         )
 
+
         north = min(
             90.0,
             north + lat_pad
@@ -2222,6 +2713,7 @@ if live_pin_items:
             west - lon_pad
         )
 
+
         east_bound = min(
             180.0,
             east + lon_pad
@@ -2229,11 +2721,13 @@ if live_pin_items:
 
 
         m.fit_bounds(
+
             [
                 [
                     south,
                     west_bound
                 ],
+
                 [
                     north,
                     east_bound
@@ -2250,37 +2744,37 @@ if live_pin_items:
 
 
 # ================================================================
-# MAP SIZE / RESIZE FIX
+# MAP RESIZE / VIEW FIX
 # ================================================================
 
 if live_pin_items:
 
-    if len(focus_pin_items) == 1:
+    if len(
+        focus_pin_items
+    ) == 1:
 
-        _reapply_view_js = (
+        reapply_view_js = (
 
             f"{m.get_name()}.setView("
             f"[{lats[0]}, {lons[0]}], "
             f"8"
             f");"
-
         )
 
     else:
 
-        _reapply_view_js = (
+        reapply_view_js = (
 
             f"{m.get_name()}.fitBounds("
             f"[["
-            f"{south}, "
+            f"{south},"
             f"{west_bound}"
-            f"], ["
-            f"{north}, "
+            f"],["
+            f"{north},"
             f"{east_bound}"
-            f"]], "
-            f"{{padding: [10, 10], maxZoom: 10}}"
+            f"]],"
+            f"{{padding:[10,10],maxZoom:10}}"
             f");"
-
         )
 
 
@@ -2288,46 +2782,49 @@ if live_pin_items:
 
         "<script>"
 
-        f"function __fixMapView(){{"
-        f"try {{"
+        "function __fixMapView(){"
+
+        "try{"
 
         f"{m.get_name()}.invalidateSize();"
 
-        f"{_reapply_view_js}"
+        f"{reapply_view_js}"
 
-        f"}} catch(e) {{}}"
-        f"}}"
+        "}catch(e){}"
+
+        "}"
 
         "window.addEventListener("
-        "'load', "
+        "'load',"
         "function(){"
 
         "__fixMapView();"
 
         "setTimeout("
-        "__fixMapView, "
+        "__fixMapView,"
         "200"
         ");"
 
         "setTimeout("
-        "__fixMapView, "
+        "__fixMapView,"
         "600"
         ");"
 
         "setTimeout("
-        "__fixMapView, "
+        "__fixMapView,"
         "1200"
         ");"
 
         "});"
 
+
         "window.addEventListener("
-        "'resize', "
+        "'resize',"
         "__fixMapView"
         ");"
 
 
-        "if (window.ResizeObserver) {"
+        "if(window.ResizeObserver){"
 
         "new ResizeObserver("
         "__fixMapView"
@@ -2353,9 +2850,14 @@ if live_pin_items:
 # ================================================================
 
 st_folium(
+
     m,
+
     width="100%",
+
     height=680,
+
     returned_objects=[],
+
     key="tactical_map_flush_v31"
 )
