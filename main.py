@@ -98,7 +98,7 @@ st.markdown(
             right: 0 !important;
             bottom: 0 !important;
             width: 100% !important;
-            height: clamp(130px, 24dvh, 200px) !important;
+            height: clamp(155px, 26dvh, 215px) !important;
             padding-bottom: env(safe-area-inset-bottom, 0px) !important;
             margin: 0 !important;
             z-index: 2147483000 !important;
@@ -114,7 +114,7 @@ st.markdown(
             height: 28px;
             padding: 0 14px;
             font-family: Arial, sans-serif;
-            font-size: 9px;
+            font-size: 11px;
             font-weight: 900;
             letter-spacing: .5px;
             text-transform: uppercase;
@@ -141,7 +141,7 @@ st.markdown(
             border-radius: 3px;
             background: #3b70b4;
             color: white;
-            font-size: 8px;
+            font-size: 10px;
             font-weight: 900;
             letter-spacing: .4px;
             text-transform: uppercase;
@@ -149,7 +149,7 @@ st.markdown(
         }
         #news-ticker-overlay .location {
             color: #ff8b8b;
-            font-size: 8px;
+            font-size: 10px;
             font-weight: 800;
             letter-spacing: .4px;
             text-transform: uppercase;
@@ -159,9 +159,9 @@ st.markdown(
         }
         #news-ticker-overlay .title a {
             color: white;
-            font-size: 15px;
+            font-size: 19px;
             font-weight: 800;
-            line-height: 1.35;
+            line-height: 1.3;
             text-decoration: none;
             cursor: pointer;
             display: -webkit-box;
