@@ -1631,6 +1631,679 @@ if BANNER_PATH.exists():
 
 
 # ================================================================
+# TICKER COMPONENT
+# ================================================================
+#
+# THIS IS THE IMPORTANT PART.
+#
+# st.components.v1.html() creates a real browser component.
+#
+# JavaScript inside this component WILL execute.
+# ================================================================
+
+ticker_json = json.dumps(
+    ticker_items,
+    ensure_ascii=False
+)
+
+
+banner_json = json.dumps(
+    banner_data
+)
+
+
+components.html(
+
+    f"""
+    <!DOCTYPE html>
+
+    <html>
+
+    <head>
+
+        <meta charset="UTF-8">
+
+        <style>
+
+            * {{
+                box-sizing: border-box;
+            }}
+
+
+            html,
+            body {{
+                margin: 0;
+                padding: 0;
+
+                width: 100%;
+                height: 100%;
+
+                overflow: hidden;
+
+                background:
+                    #111827;
+
+                font-family:
+                    Arial,
+                    sans-serif;
+            }}
+
+
+            /* ====================================================
+               TICKER
+               ==================================================== */
+
+            #ticker {{
+
+                position: relative;
+
+                width: 100%;
+                height: 100%;
+
+                overflow: hidden;
+
+                background:
+                    #111827;
+
+                color: white;
+
+                border-top:
+                    1px solid
+                    rgba(255,255,255,.12);
+
+                box-shadow:
+                    0 -5px 18px
+                    rgba(0,0,0,.35);
+            }}
+
+
+            /* ====================================================
+               HEADER
+               ==================================================== */
+
+            #ticker-header {{
+
+                position: absolute;
+
+                left: 0;
+                right: 0;
+                top: 0;
+
+                height: 34px;
+
+                display: flex;
+
+                align-items: center;
+
+                justify-content:
+                    space-between;
+
+                padding:
+                    0 20px;
+
+                font-size: 11px;
+
+                font-weight: 900;
+
+                letter-spacing:
+                    .8px;
+
+                text-transform:
+                    uppercase;
+
+                color:
+                    #e5e7eb;
+
+                z-index: 10;
+            }}
+
+
+            /* ====================================================
+               CONTENT
+               ==================================================== */
+
+            #ticker-content {{
+
+                position: absolute;
+
+                left: 0;
+                right: 0;
+
+                top: 34px;
+                bottom: 0;
+
+                padding:
+                    12px 22px;
+
+                display: flex;
+
+                align-items: center;
+
+                justify-content: center;
+
+                opacity: 1;
+
+                transition:
+                    opacity .35s ease;
+            }}
+
+
+            #ticker-content.fade {{
+                opacity: 0;
+            }}
+
+
+            /* ====================================================
+               HEADLINE
+               ==================================================== */
+
+            .headline {{
+                width: 100%;
+            }}
+
+
+            .headline-top {{
+
+                display: flex;
+
+                align-items: center;
+
+                gap: 10px;
+
+                margin-bottom: 6px;
+            }}
+
+
+            .source {{
+
+                display: inline-block;
+
+                padding:
+                    4px 8px;
+
+                border-radius: 4px;
+
+                background:
+                    #3b70b4;
+
+                color: white;
+
+                font-size: 9px;
+
+                font-weight: 900;
+
+                letter-spacing:
+                    .5px;
+
+                text-transform:
+                    uppercase;
+
+                white-space: nowrap;
+            }}
+
+
+            .location {{
+
+                color:
+                    #ff8b8b;
+
+                font-size: 9px;
+
+                font-weight: 800;
+
+                letter-spacing:
+                    .5px;
+
+                text-transform:
+                    uppercase;
+
+                overflow: hidden;
+
+                text-overflow:
+                    ellipsis;
+
+                white-space: nowrap;
+            }}
+
+
+            .title {{
+
+                color: white;
+
+                font-size: 15px;
+
+                font-weight: 800;
+
+                line-height: 1.35;
+            }}
+
+
+            .title a {{
+
+                color: white;
+
+                text-decoration:
+                    none;
+            }}
+
+
+            .title a:hover {{
+                color:
+                    #75b9f5;
+            }}
+
+
+            /* ====================================================
+               BANNER
+               ==================================================== */
+
+            .banner {{
+
+                width: 100%;
+
+                height: 100%;
+
+                display: flex;
+
+                align-items: center;
+
+                justify-content: center;
+
+                background:
+                    white;
+
+                overflow: hidden;
+            }}
+
+
+            .banner img {{
+
+                display: block;
+
+                width: 100%;
+
+                height: auto;
+
+                max-height: 100%;
+
+                object-fit:
+                    contain;
+            }}
+
+
+            .banner-fallback {{
+
+                color:
+                    #202938;
+
+                font-family:
+                    Georgia,
+                    serif;
+
+                font-size: 26px;
+
+                font-weight: 700;
+
+                text-align: center;
+            }}
+
+        </style>
+
+    </head>
+
+
+    <body>
+
+        <div id="ticker">
+
+            <div id="ticker-header">
+
+                <span>
+                    🛰️ LIVE DATA SOURCES
+                </span>
+
+                <span>
+                    LIVE PIN HEADLINES
+                </span>
+
+            </div>
+
+
+            <div id="ticker-content"></div>
+
+        </div>
+
+
+        <script>
+
+            /* ====================================================
+               DATA FROM STREAMLIT
+               ==================================================== */
+
+            const headlines =
+                {ticker_json};
+
+
+            const banner =
+                {banner_json};
+
+
+            /* ====================================================
+               TIMING
+               ==================================================== */
+
+            const DISPLAY_TIME = 5000;
+
+            const FADE_TIME = 350;
+
+
+            /* ====================================================
+               STATE
+               ==================================================== */
+
+            let currentIndex = 0;
+
+
+            const content =
+                document.getElementById(
+                    "ticker-content"
+                );
+
+
+            /* ====================================================
+               RENDER HEADLINE
+               ==================================================== */
+
+            function renderHeadline(item) {{
+
+                const wrapper =
+                    document.createElement(
+                        "div"
+                    );
+
+                wrapper.className =
+                    "headline";
+
+
+                const top =
+                    document.createElement(
+                        "div"
+                    );
+
+                top.className =
+                    "headline-top";
+
+
+                const source =
+                    document.createElement(
+                        "span"
+                    );
+
+                source.className =
+                    "source";
+
+                source.textContent =
+                    item.source;
+
+
+                const location =
+                    document.createElement(
+                        "span"
+                    );
+
+                location.className =
+                    "location";
+
+                location.textContent =
+                    "📍 " +
+                    item.location;
+
+
+                top.appendChild(
+                    source
+                );
+
+                top.appendChild(
+                    location
+                );
+
+
+                const title =
+                    document.createElement(
+                        "div"
+                    );
+
+                title.className =
+                    "title";
+
+
+                const link =
+                    document.createElement(
+                        "a"
+                    );
+
+                link.href =
+                    item.url;
+
+                link.target =
+                    "_top";
+
+                link.textContent =
+                    item.title +
+                    " ↗";
+
+
+                title.appendChild(
+                    link
+                );
+
+
+                wrapper.appendChild(
+                    top
+                );
+
+                wrapper.appendChild(
+                    title
+                );
+
+
+                return wrapper;
+            }}
+
+
+            /* ====================================================
+               RENDER BANNER
+               ==================================================== */
+
+            function renderBanner() {{
+
+                const wrapper =
+                    document.createElement(
+                        "div"
+                    );
+
+                wrapper.className =
+                    "banner";
+
+
+                if (banner) {{
+
+                    const image =
+                        document.createElement(
+                            "img"
+                        );
+
+                    image.src =
+                        banner;
+
+                    image.alt =
+                        "In friendship with Air Brussels Times";
+
+
+                    wrapper.appendChild(
+                        image
+                    );
+
+                }} else {{
+
+                    const fallback =
+                        document.createElement(
+                            "div"
+                        );
+
+                    fallback.className =
+                        "banner-fallback";
+
+                    fallback.textContent =
+                        "In friendship with: Air Brussels Times";
+
+
+                    wrapper.appendChild(
+                        fallback
+                    );
+                }}
+
+
+                return wrapper;
+            }}
+
+
+            /* ====================================================
+               DISPLAY CURRENT ITEM
+               ==================================================== */
+
+            function displayCurrent() {{
+
+                content.classList.add(
+                    "fade"
+                );
+
+
+                setTimeout(
+                    function() {{
+
+                        content.innerHTML = "";
+
+
+                        /*
+                         * Headlines first.
+                         */
+                        if (
+                            currentIndex <
+                            headlines.length
+                        ) {{
+
+                            content.appendChild(
+                                renderHeadline(
+                                    headlines[
+                                        currentIndex
+                                    ]
+                                )
+                            );
+
+                        }}
+
+
+                        /*
+                         * Banner after the final
+                         * red headline.
+                         */
+                        else {{
+
+                            content.appendChild(
+                                renderBanner()
+                            );
+                        }}
+
+
+                        content.classList.remove(
+                            "fade"
+                        );
+
+                    }},
+                    FADE_TIME
+                );
+            }}
+
+
+            /* ====================================================
+               INITIAL DISPLAY
+               ==================================================== */
+
+            if (
+                headlines.length > 0
+            ) {{
+
+                content.appendChild(
+                    renderHeadline(
+                        headlines[0]
+                    )
+                );
+
+            }} else {{
+
+                content.appendChild(
+                    renderBanner()
+                );
+            }}
+
+
+            /* ====================================================
+               COMPLETE CYCLE
+               ====================================================
+               
+               Example:
+               
+               headlines.length = 5
+               
+               index 0 = headline 1
+               index 1 = headline 2
+               index 2 = headline 3
+               index 3 = headline 4
+               index 4 = headline 5
+               index 5 = banner
+               index 6 = back to headline 1
+               ==================================================== */
+
+            const totalItems =
+                headlines.length + 1;
+
+
+            setInterval(
+                function() {{
+
+                    currentIndex++;
+
+
+                    if (
+                        currentIndex >=
+                        totalItems
+                    ) {{
+
+                        currentIndex = 0;
+                    }}
+
+
+                    displayCurrent();
+
+                }},
+                DISPLAY_TIME
+            );
+
+        </script>
+
+    </body>
+
+    </html>
+    """,
+
+    height=190,
+
+    scrolling=False
+)
+
+
+# ================================================================
 # MAP
 # ================================================================
 
@@ -1968,4 +2641,223 @@ if live_pin_items:
     ]
 
 
-   
+    lons = [
+        lon
+        for (
+            _,
+            _,
+            _,
+            lon
+        )
+        in focus_pin_items
+    ]
+
+
+    if len(
+        focus_pin_items
+    ) == 1:
+
+        m.location = [
+            lats[0],
+            lons[0]
+        ]
+
+        m.options[
+            "zoom"
+        ] = 8
+
+    else:
+
+        south = min(lats)
+        north = max(lats)
+
+        west = min(lons)
+        east = max(lons)
+
+
+        lat_span = (
+            north - south
+        )
+
+        lon_span = (
+            east - west
+        )
+
+
+        lat_pad = max(
+            1.0,
+            lat_span * 0.08
+        )
+
+
+        lon_pad = max(
+            1.5,
+            lon_span * 0.08
+        )
+
+
+        south = max(
+            -90.0,
+            south - lat_pad
+        )
+
+
+        north = min(
+            90.0,
+            north + lat_pad
+        )
+
+
+        west_bound = max(
+            -180.0,
+            west - lon_pad
+        )
+
+
+        east_bound = min(
+            180.0,
+            east + lon_pad
+        )
+
+
+        m.fit_bounds(
+
+            [
+                [
+                    south,
+                    west_bound
+                ],
+
+                [
+                    north,
+                    east_bound
+                ]
+            ],
+
+            padding=(
+                10,
+                10
+            ),
+
+            max_zoom=10
+        )
+
+
+# ================================================================
+# MAP RESIZE / VIEW FIX
+# ================================================================
+
+if live_pin_items:
+
+    if len(
+        focus_pin_items
+    ) == 1:
+
+        reapply_view_js = (
+
+            f"{m.get_name()}.setView("
+            f"[{lats[0]}, {lons[0]}], "
+            f"8"
+            f");"
+        )
+
+    else:
+
+        reapply_view_js = (
+
+            f"{m.get_name()}.fitBounds("
+            f"[["
+            f"{south},"
+            f"{west_bound}"
+            f"],["
+            f"{north},"
+            f"{east_bound}"
+            f"]],"
+            f"{{padding:[10,10],maxZoom:10}}"
+            f");"
+        )
+
+
+    resize_fix_script = (
+
+        "<script>"
+
+        "function __fixMapView(){"
+
+        "try{"
+
+        f"{m.get_name()}.invalidateSize();"
+
+        f"{reapply_view_js}"
+
+        "}catch(e){}"
+
+        "}"
+
+        "window.addEventListener("
+        "'load',"
+        "function(){"
+
+        "__fixMapView();"
+
+        "setTimeout("
+        "__fixMapView,"
+        "200"
+        ");"
+
+        "setTimeout("
+        "__fixMapView,"
+        "600"
+        ");"
+
+        "setTimeout("
+        "__fixMapView,"
+        "1200"
+        ");"
+
+        "});"
+
+
+        "window.addEventListener("
+        "'resize',"
+        "__fixMapView"
+        ");"
+
+
+        "if(window.ResizeObserver){"
+
+        "new ResizeObserver("
+        "__fixMapView"
+        ").observe("
+        "document.body"
+        ");"
+
+        "}"
+
+        "</script>"
+    )
+
+
+    m.get_root().html.add_child(
+        folium.Element(
+            resize_fix_script
+        )
+    )
+
+
+# ================================================================
+# MAP RENDER
+# ================================================================
+
+st_folium(
+
+    m,
+
+    width="100%",
+
+    height=680,
+
+    returned_objects=[],
+
+    key="tactical_map_flush_v31"
+)
