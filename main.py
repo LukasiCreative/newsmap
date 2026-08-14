@@ -49,7 +49,7 @@ with placeholder:
     )
 
 # ================================================================
-# CRITICAL CSS – map fullscreen, ticker fixed overlay at bottom
+# CRITICAL CSS – map fullscreen, ticker fixed overlay, language dropdown
 # ================================================================
 st.markdown(
     _flatten_html("""
@@ -60,11 +60,13 @@ st.markdown(
         [data-testid="stDecoration"], [data-testid="stStatusWidget"],
         [data-testid="stAppDeployButton"], [data-testid="stHeaderActionElements"],
         div[class*="viewerBadge"], div[class*="stDeployButton"],
-        div[class*="StatusWidget"], div[class*="Toolbar"], div[class*="Decoration"] {
+        div[class*="StatusWidget"], div[class*="Toolbar"], div[class*="Decoration"],
+        .goog-te-banner-frame, #goog-gt-tt, .goog-te-balloon-frame {
             display: none !important;
         }
+        body { top: 0px !important; }
 
-        /* Make the whole app container fill the viewport (dvh accounts for mobile browser chrome) */
+        /* Make the whole app container fill the viewport */
         html, body, .stApp, .stAppViewContainer, .stAppViewBlockContainer,
         .main, .main .block-container {
             margin: 0 !important;
@@ -78,7 +80,7 @@ st.markdown(
             filter: none !important;
         }
 
-        /* The map container must also fill the viewport */
+        /* The map container fills viewport */
         div[data-testid="stElementContainer"]:has(iframe.leaflet-container) {
             height: 100vh !important;
             height: 100dvh !important;
@@ -196,7 +198,7 @@ st.markdown(
             padding: 8px;
         }
 
-        /* The ticker driver component is headless: it only renders the overlay above */
+        /* The ticker driver component is headless */
         div[data-testid="stCustomComponentV1"]:not(:has(iframe.leaflet-container)),
         div[data-testid="stElementContainer"]:has(div[data-testid="stCustomComponentV1"]:not(:has(iframe.leaflet-container))) {
             display: none !important;
@@ -294,7 +296,7 @@ FEED_CONFIG = [
 ]
 
 # ================================================================
-# WORKER FETCH FUNCTIONS (Plain Python functions called in threads)
+# WORKER FETCH FUNCTIONS
 # ================================================================
 def fetch_rss(url, source_name, limit=8, only_relevant=False):
     articles = []
@@ -469,18 +471,14 @@ def fetch_all_crisis_data():
 
     combined = []
 
-    # Run all feed requests concurrently in background threads
     with ThreadPoolExecutor(max_workers=20) as executor:
         futures = []
-
-        # Primary feeds
         futures.append(executor.submit(fetch_rss, FEED_CONFIG[0]["feed_url"], "GDACS", 8, False))
         futures.append(executor.submit(fetch_rss, FEED_CONFIG[1]["feed_url"], "GDACS", 8, False))
         futures.append(executor.submit(fetch_reliefweb, 15))
         futures.append(executor.submit(fetch_usgs_geojson, 20))
         futures.append(executor.submit(fetch_usgs_atom, 12))
 
-        # Media feeds
         for source, url in media_feeds:
             futures.append(executor.submit(fetch_rss, url, source, 8, True))
 
@@ -492,7 +490,6 @@ def fetch_all_crisis_data():
             except Exception:
                 pass
 
-    # Deduplicate alerts
     seen = set()
     mapped = []
     for article in combined:
@@ -505,7 +502,6 @@ def fetch_all_crisis_data():
 
     return mapped
 
-# Retrieve all data at once
 mapped_alerts = fetch_all_crisis_data()
 
 # ================================================================
@@ -630,7 +626,6 @@ if requested_article is not None:
             '</div>',
             unsafe_allow_html=True
         )
-    st.stop()
 
 # ================================================================
 # TICKER DATA (red pins only)
@@ -677,11 +672,9 @@ for alert_idx, item in enumerate(mapped_alerts):
     except (TypeError, ValueError):
         continue
 
-# Extract ALL red pins (media / crisis news pins)
 red_pins = [p for p in live_pin_items if not p[1]["is_un_data"]]
 target_pins = red_pins if red_pins else live_pin_items
 
-# Calculate bounding box encompassing ALL target pins
 init_lat, init_lon, init_zoom = 20.0, 0.0, 2
 bounds_js = None
 
@@ -708,7 +701,6 @@ elif target_pins:
         min_lon = min(lons)
         max_lon = max(lons)
         
-        # Add a 6% buffer around all sides to guarantee no pin touches edges
         lat_span = max(0.5, max_lat - min_lat)
         lon_span = max(0.5, max_lon - min_lon)
         south = max(-85.0, min_lat - (lat_span * 0.06))
@@ -716,7 +708,6 @@ elif target_pins:
         west = max(-180.0, min_lon - (lon_span * 0.06))
         east = min(180.0, max_lon + (lon_span * 0.06))
         
-        # paddingTopLeft: 40px margin, paddingBottomRight: 220px to account for the ticker overlay
         bounds_js = f"__mapObj.fitBounds([[{south},{west}],[{north},{east}]],{{paddingTopLeft:[40,40],paddingBottomRight:[40,220]}});"
 
 m = folium.Map(
@@ -754,7 +745,6 @@ for alert_idx, item, lat, lon in live_pin_items:
         marker_color = "#ff4b4b"
         border_color = "#ff8080"
 
-    # Popup link opens article
     popup_html = (
         '<div style="font-family:sans-serif;font-size:12px;width:240px;color:#1a1f2c;line-height:1.4;">'
         f'<span style="color:#718096;font-weight:800;font-size:10px;text-transform:uppercase;">'
@@ -809,18 +799,18 @@ if live_pin_items and bounds_js:
     m.get_root().html.add_child(folium.Element(fit_script))
 
 # ================================================================
-# RENDER: MAP FIRST, TICKER OVERLAY AT BOTTOM
+# RENDER: MAP ONLY IF NOT IN ARTICLE VIEW
 # ================================================================
+if requested_article is None:
+    st_folium(
+        m,
+        width="100%",
+        height=600,
+        returned_objects=[],
+        key="tactical_map_flush_v33"
+    )
 
-st_folium(
-    m,
-    width="100%",
-    height=600,
-    returned_objects=[],
-    key="tactical_map_flush_v33"
-)
-
-# Ticker – fixed overlay at bottom
+# Ticker & Language Switcher
 ticker_json = json.dumps(ticker_items, ensure_ascii=False)
 pin_lookup_json = json.dumps({
     str(alert_idx): {
@@ -848,11 +838,8 @@ components.html(
     <html>
     <head><meta charset="UTF-8"></head>
     <body>
+        <div id="google_translate_element" style="display:none;"></div>
         <script>
-            // This component is headless: Streamlit sandboxes component iframes so
-            // links inside them cannot navigate the app window. The ticker is
-            // therefore built in the app document itself, where a click on a
-            // headline navigates the whole window (fullscreen article view).
             const frame = window.frameElement;
             const doc = frame ? frame.ownerDocument : document;
             const win = doc.defaultView;
@@ -861,180 +848,295 @@ components.html(
                 return win.location.origin + win.location.pathname + query;
             }}
 
-            function buildOverlay() {{
-                let layer = doc.getElementById("news-ticker-overlay");
-                if (!layer) {{
-                    layer = doc.createElement("div");
-                    layer.id = "news-ticker-overlay";
-                    doc.body.appendChild(layer);
-                }}
-                layer.innerHTML =
-                    '<div id="ticker-header">' +
-                    '<span>🛰️ LIVE DATA SOURCES</span>' +
-                    '<span>LIVE PIN HEADLINES</span>' +
-                    '</div><div id="ticker-content"></div>';
-                return layer;
+            // ==========================================
+            // TRANSLATION ENGINE & FLAG SELECTOR (TOP RIGHT)
+            // ==========================================
+            const languages = [
+                {{ code: 'en', flag: '🇬🇧', name: 'English' }},
+                {{ code: 'zh-CN', flag: '🇨🇳', name: 'Chinese' }},
+                {{ code: 'es', flag: '🇪🇸', name: 'Spanish' }},
+                {{ code: 'hi', flag: '🇮🇳', name: 'Hindi' }},
+                {{ code: 'ar', flag: '🇸🇦', name: 'Arabic' }},
+                {{ code: 'fr', flag: '🇫🇷', name: 'French' }},
+                {{ code: 'ru', flag: '🇷🇺', name: 'Russian' }},
+                {{ code: 'sv', flag: '🇸🇪', name: 'Swedish' }},
+                {{ code: 'nl', flag: '🇳🇱', name: 'Dutch' }},
+                {{ code: 'he', flag: '🇮🇱', name: 'Hebrew' }}
+            ];
+
+            function setGoogleTranslateCookie(langCode) {{
+                const value = '/auto/' + langCode;
+                const domain = win.location.hostname;
+                doc.cookie = 'googtrans=' + value + ';path=/;';
+                doc.cookie = 'googtrans=' + value + ';path=/;domain=' + domain + ';';
+                doc.cookie = 'googtrans=' + value + ';path=/;domain=.' + domain + ';';
             }}
 
-            const overlay = buildOverlay();
-            const content = doc.getElementById("ticker-content");
-
-            const headlines = {ticker_json};
-            const pinLookup = {pin_lookup_json};
-            const banner = {banner_json};
-            const bannerArticle = {banner_article_json if banner_article_json is not None else 'null'};
-            const DISPLAY_TIME = 7000;   // 7 seconds per item
-            const FADE_TIME = 400;
-            let currentIndex = 0;
-            let holdUntil = 0;   // pauses rotation while a clicked pin is shown
-
-            function renderHeadline(item) {{
-                const wrapper = doc.createElement("div");
-                wrapper.className = "headline";
-                const top = doc.createElement("div");
-                top.className = "headline-top";
-                const source = doc.createElement("span");
-                source.className = "source";
-                source.textContent = item.source;
-                const location = doc.createElement("span");
-                location.className = "location";
-                location.textContent = "📍 " + item.location;
-                top.appendChild(source);
-                top.appendChild(location);
-                const title = doc.createElement("div");
-                title.className = "title";
-                const link = doc.createElement("a");
-                link.href = appUrl(item.url);
-                link.textContent = item.title + " ↗";
-                title.appendChild(link);
-                wrapper.appendChild(top);
-                wrapper.appendChild(title);
-                return wrapper;
-            }}
-
-            function renderBanner() {{
-                const wrapper = doc.createElement("div");
-                wrapper.className = "banner";
-                if (banner) {{
-                    const image = doc.createElement("img");
-                    image.src = banner;
-                    image.alt = "In friendship with Air Brussels Times";
-                    wrapper.appendChild(image);
+            function triggerTranslate(langCode) {{
+                setGoogleTranslateCookie(langCode);
+                const select = doc.querySelector('.goog-te-combo');
+                if (select) {{
+                    select.value = langCode;
+                    select.dispatchEvent(new Event('change'));
                 }} else {{
-                    const fallback = doc.createElement("div");
-                    fallback.className = "banner-fallback";
-                    fallback.textContent = "In friendship with: Air Brussels Times";
-                    wrapper.appendChild(fallback);
+                    win.location.reload();
                 }}
-                return wrapper;
             }}
 
-            function setContent(node) {{
-                content.innerHTML = "";
-                content.appendChild(node);
+            function initGoogleTranslate() {{
+                if (!doc.getElementById('google-translate-script')) {{
+                    const script = doc.createElement('script');
+                    script.id = 'google-translate-script';
+                    script.src = 'https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
+                    doc.head.appendChild(script);
+
+                    win.googleTranslateElementInit = function() {{
+                        new win.google.translate.TranslateElement({{
+                            pageLanguage: 'en',
+                            autoDisplay: false
+                        }}, 'google_translate_element');
+                    }};
+                }}
             }}
 
-            // A pin click on the map pushes that headline into the ticker.
-            function showPinHeadline(index) {{
-                const item = pinLookup[String(index)];
-                if (!item) return;
-                holdUntil = Date.now() + 15000;
-                content.classList.remove("fade");
-                setContent(renderHeadline(item));
+            function buildLanguageSelector() {{
+                let container = doc.getElementById("crisis-lang-picker");
+                if (!container) {{
+                    container = doc.createElement("div");
+                    container.id = "crisis-lang-picker";
+                    container.style.cssText = "position:fixed;top:14px;right:16px;z-index:2147483647;font-family:Arial,sans-serif;";
+                    doc.body.appendChild(container);
+                }}
+
+                // Read current lang
+                let currentLang = 'en';
+                const match = doc.cookie.match(/(?:^|; )googtrans=\/auto\/([^;]+)/);
+                if (match && match[1]) {{
+                    currentLang = match[1];
+                }}
+
+                const activeLangObj = languages.find(l => l.code === currentLang) || languages[0];
+
+                container.innerHTML = `
+                    <div style="position:relative;">
+                        <button id="lang-btn" style="background:#181d29;border:1.5px solid rgba(255,255,255,0.2);border-radius:24px;padding:6px 12px;display:flex;align-items:center;gap:6px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,0.5);color:white;font-size:18px;line-height:1;outline:none;">
+                            <span id="current-flag">${activeLangObj.flag}</span>
+                            <span style="font-size:10px;color:#9ca3af;margin-left:2px;">▼</span>
+                        </button>
+                        <div id="lang-menu" style="display:none;position:absolute;top:115%;right:0;background:#181d29;border:1.5px solid rgba(255,255,255,0.18);border-radius:12px;padding:6px;box-shadow:0 8px 24px rgba(0,0,0,0.7);grid-template-columns:repeat(5, 1fr);gap:4px;width:190px;">
+                            ${languages.map(l => `
+                                <button data-code="${l.code}" title="${l.name}" style="background:transparent;border:none;border-radius:6px;font-size:20px;padding:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.15)'" onmouseout="this.style.background='transparent'">
+                                    ${l.flag}
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+
+                const btn = container.querySelector('#lang-btn');
+                const menu = container.querySelector('#lang-menu');
+
+                btn.addEventListener('click', function(e) {{
+                    e.stopPropagation();
+                    menu.style.display = menu.style.display === 'grid' ? 'none' : 'grid';
+                }});
+
+                doc.addEventListener('click', function() {{
+                    if (menu) menu.style.display = 'none';
+                }});
+
+                menu.querySelectorAll('button[data-code]').forEach(itemBtn => {{
+                    itemBtn.addEventListener('click', function(e) {{
+                        e.stopPropagation();
+                        const code = this.getAttribute('data-code');
+                        menu.style.display = 'none';
+                        triggerTranslate(code);
+                    }});
+                }});
             }}
 
-            // Full-window navigation, driven from the app document so the article
-            // page replaces the map instead of opening in a sandboxed frame.
-            function navigateApp(query) {{
-                const url = appUrl(query);
-                const link = doc.createElement("a");
-                link.href = url;
-                link.style.display = "none";
-                doc.body.appendChild(link);
-                link.click();
-                setTimeout(function () {{
-                    link.remove();
-                    if (win.location.search.indexOf(query.replace("?", "")) === -1) {{
-                        window.open(url, "_blank");
+            initGoogleTranslate();
+            buildLanguageSelector();
+
+            // ==========================================
+            // TICKER OVERLAY (BOTTOM)
+            // ==========================================
+            const isArticleView = { 'true' if requested_article is not None else 'false' };
+            if (!isArticleView) {{
+                function buildOverlay() {{
+                    let layer = doc.getElementById("news-ticker-overlay");
+                    if (!layer) {{
+                        layer = doc.createElement("div");
+                        layer.id = "news-ticker-overlay";
+                        doc.body.appendChild(layer);
                     }}
-                }}, 400);
-            }}
+                    layer.innerHTML =
+                        '<div id="ticker-header">' +
+                        '<span>🛰️ LIVE DATA SOURCES</span>' +
+                        '<span>LIVE PIN HEADLINES</span>' +
+                        '</div><div id="ticker-content"></div>';
+                    return layer;
+                }}
 
-            // The map is a sibling iframe: watch it for an open popup, mirror the
-            // headline down here and make its link open the fullscreen article.
-            let lastPopupIndex = null;
-            function popupLink() {{
-                let frames;
-                try {{
-                    frames = win.frames;
-                }} catch (e) {{
+                const overlay = buildOverlay();
+                const content = doc.getElementById("ticker-content");
+
+                const headlines = {ticker_json};
+                const pinLookup = {pin_lookup_json};
+                const banner = {banner_json};
+                const bannerArticle = {banner_article_json if banner_article_json is not None else 'null'};
+                const DISPLAY_TIME = 7000;
+                const FADE_TIME = 400;
+                let currentIndex = 0;
+                let holdUntil = 0;
+
+                function renderHeadline(item) {{
+                    const wrapper = doc.createElement("div");
+                    wrapper.className = "headline";
+                    const top = doc.createElement("div");
+                    top.className = "headline-top";
+                    const source = doc.createElement("span");
+                    source.className = "source";
+                    source.textContent = item.source;
+                    const location = doc.createElement("span");
+                    location.className = "location";
+                    location.textContent = "📍 " + item.location;
+                    top.appendChild(source);
+                    top.appendChild(location);
+                    const title = doc.createElement("div");
+                    title.className = "title";
+                    const link = doc.createElement("a");
+                    link.href = appUrl(item.url);
+                    link.textContent = item.title + " ↗";
+                    title.appendChild(link);
+                    wrapper.appendChild(top);
+                    wrapper.appendChild(title);
+                    return wrapper;
+                }}
+
+                function renderBanner() {{
+                    const wrapper = doc.createElement("div");
+                    wrapper.className = "banner";
+                    if (banner) {{
+                        const image = doc.createElement("img");
+                        image.src = banner;
+                        image.alt = "In friendship with Air Brussels Times";
+                        wrapper.appendChild(image);
+                    }} else {{
+                        const fallback = doc.createElement("div");
+                        fallback.className = "banner-fallback";
+                        fallback.textContent = "In friendship with: Air Brussels Times";
+                        wrapper.appendChild(fallback);
+                    }}
+                    return wrapper;
+                }}
+
+                function setContent(node) {{
+                    content.innerHTML = "";
+                    content.appendChild(node);
+                }}
+
+                function showPinHeadline(index) {{
+                    const item = pinLookup[String(index)];
+                    if (!item) return;
+                    holdUntil = Date.now() + 15000;
+                    content.classList.remove("fade");
+                    setContent(renderHeadline(item));
+                }}
+
+                function navigateApp(query) {{
+                    const url = appUrl(query);
+                    const link = doc.createElement("a");
+                    link.href = url;
+                    link.style.display = "none";
+                    doc.body.appendChild(link);
+                    link.click();
+                    setTimeout(function () {{
+                        link.remove();
+                        if (win.location.search.indexOf(query.replace("?", "")) === -1) {{
+                            window.open(url, "_blank");
+                        }}
+                    }}, 400);
+                }}
+
+                let lastPopupIndex = null;
+                function popupLink() {{
+                    let frames;
+                    try {{
+                        frames = win.frames;
+                    }} catch (e) {{
+                        return null;
+                    }}
+                    for (let i = 0; i < frames.length; i++) {{
+                        try {{
+                            const link = frames[i].document.querySelector(
+                                '.leaflet-popup-content a[href^="?article="]'
+                            );
+                            if (link) return link;
+                        }} catch (e) {{}}
+                    }}
                     return null;
                 }}
-                for (let i = 0; i < frames.length; i++) {{
-                    try {{
-                        const link = frames[i].document.querySelector(
-                            '.leaflet-popup-content a[href^="?article="]'
-                        );
-                        if (link) return link;
-                    }} catch (e) {{}}
-                }}
-                return null;
-            }}
 
-            setInterval(function () {{
-                const link = popupLink();
-                const idx = link
-                    ? parseInt(link.getAttribute("href").split("=")[1], 10)
-                    : null;
-                if (link && !link.dataset.crisisBound) {{
-                    link.dataset.crisisBound = "1";
-                    link.addEventListener("click", function (event) {{
-                        event.preventDefault();
-                        navigateApp(link.getAttribute("href"));
-                    }});
-                }}
-                if (idx === lastPopupIndex) return;
-                lastPopupIndex = idx;
-                if (idx !== null && !isNaN(idx)) showPinHeadline(idx);
-            }}, 400);
+                setInterval(function () {{
+                    const link = popupLink();
+                    const idx = link
+                        ? parseInt(link.getAttribute("href").split("=")[1], 10)
+                        : null;
+                    if (link && !link.dataset.crisisBound) {{
+                        link.dataset.crisisBound = "1";
+                        link.addEventListener("click", function (event) {{
+                            event.preventDefault();
+                            navigateApp(link.getAttribute("href"));
+                        }});
+                    }}
+                    if (idx === lastPopupIndex) return;
+                    lastPopupIndex = idx;
+                    if (idx !== null && !isNaN(idx)) showPinHeadline(idx);
+                }}, 400);
 
-            function displayCurrent() {{
-                if (Date.now() < holdUntil) return;
-                content.classList.add("fade");
-                setTimeout(function () {{
-                    if (currentIndex < headlines.length) {{
-                        setContent(renderHeadline(headlines[currentIndex]));
+                function displayCurrent() {{
+                    if (Date.now() < holdUntil) return;
+                    content.classList.add("fade");
+                    setTimeout(function () {{
+                        if (currentIndex < headlines.length) {{
+                            setContent(renderHeadline(headlines[currentIndex]));
+                        }} else {{
+                            setContent(renderBanner());
+                        }}
+                        content.classList.remove("fade");
+                    }}, FADE_TIME);
+                }}
+
+                function startRotation() {{
+                    setInterval(function () {{
+                        currentIndex++;
+                        if (currentIndex >= headlines.length + 1) currentIndex = 0;
+                        displayCurrent();
+                    }}, DISPLAY_TIME);
+                }}
+
+                if (bannerArticle) {{
+                    setContent(renderHeadline(bannerArticle));
+                    setTimeout(function () {{
+                        currentIndex = 0;
+                        displayCurrent();
+                        startRotation();
+                    }}, DISPLAY_TIME);
+                }} else {{
+                    if (headlines.length > 0) {{
+                        setContent(renderHeadline(headlines[0]));
+                        currentIndex = 0;
                     }} else {{
                         setContent(renderBanner());
+                        currentIndex = headlines.length;
                     }}
-                    content.classList.remove("fade");
-                }}, FADE_TIME);
-            }}
-
-            function startRotation() {{
-                setInterval(function () {{
-                    currentIndex++;
-                    if (currentIndex >= headlines.length + 1) currentIndex = 0;
-                    displayCurrent();
-                }}, DISPLAY_TIME);
-            }}
-
-            if (bannerArticle) {{
-                setContent(renderHeadline(bannerArticle));
-                setTimeout(function () {{
-                    currentIndex = 0;
-                    displayCurrent();
                     startRotation();
-                }}, DISPLAY_TIME);
-            }} else {{
-                if (headlines.length > 0) {{
-                    setContent(renderHeadline(headlines[0]));
-                    currentIndex = 0;
-                }} else {{
-                    setContent(renderBanner());
-                    currentIndex = headlines.length;
                 }}
-                startRotation();
+            }} else {{
+                // Hide overlay in article view
+                const layer = doc.getElementById("news-ticker-overlay");
+                if (layer) layer.remove();
             }}
         </script>
     </body>
