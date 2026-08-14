@@ -9,6 +9,8 @@ import os
 import time
 import base64
 import xml.etree.ElementTree as ET
+import concurrent.futures
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from bs4 import BeautifulSoup
 from streamlit_folium import st_folium
@@ -299,7 +301,7 @@ FEED_CONFIG = [
 def fetch_rss(url, source_name, limit=8, only_relevant=False):
     articles = []
     try:
-        response = requests.get(url, headers=REQUEST_HEADERS, timeout=15)
+        response = requests.get(url, headers=REQUEST_HEADERS, timeout=7)
         response.raise_for_status()
         root = ET.fromstring(response.content)
         items = list(root.findall(".//item"))
@@ -361,7 +363,7 @@ def fetch_reliefweb(limit=15):
     }
     try:
         response = requests.post(url, params={"appname": appname}, json=payload,
-                                 headers={**REQUEST_HEADERS, "Content-Type": "application/json"}, timeout=15)
+                                 headers={**REQUEST_HEADERS, "Content-Type": "application/json"}, timeout=7)
         response.raise_for_status()
         for item in response.json().get("data", []):
             fields = item.get("fields", {})
@@ -404,7 +406,7 @@ def fetch_usgs_geojson(limit=20):
     articles = []
     url = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson"
     try:
-        response = requests.get(url, headers=REQUEST_HEADERS, timeout=15)
+        response = requests.get(url, headers=REQUEST_HEADERS, timeout=7)
         response.raise_for_status()
         data = response.json()
         for feature in data.get("features", [])[:limit]:
