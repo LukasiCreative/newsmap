@@ -526,7 +526,7 @@ else:
     banner_idx = None
 
 # ================================================================
-# ARTICLE VIEW (if user clicks link in popup – now opens in new tab)
+# ARTICLE VIEW
 # ================================================================
 requested_article = st.query_params.get("article")
 if requested_article is not None:
@@ -603,18 +603,6 @@ if requested_article is not None:
             line-height: 1.6;
             margin-bottom: 30px;
         }
-        .article-open-btn {
-            display: inline-block;
-            background: #3182ce;
-            color: white;
-            text-decoration: none !important;
-            font-weight: 800;
-            font-size: 14px;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-family: Arial, sans-serif;
-            cursor: pointer;
-        }
         </style>
         """),
         unsafe_allow_html=True
@@ -625,14 +613,12 @@ if requested_article is not None:
         st.rerun()
 
     if article:
-        article_url = str(article["link"])
         st.markdown(
             '<div class="article-wrap">'
             f'<div class="article-source-pill">{html.escape(str(article["source"]))}</div>'
             f'<div class="article-location">📍 {html.escape(str(article["location_name"]))}</div>'
             f'<div class="article-title">{html.escape(str(article["title"]))}</div>'
             f'<div class="article-summary">{html.escape(str(article["summary"]))}</div>'
-            f'<a class="article-open-btn" href="{html.escape(article_url)}" target="_blank">Open Full Article Source ↗</a>'
             '</div>',
             unsafe_allow_html=True
         )
