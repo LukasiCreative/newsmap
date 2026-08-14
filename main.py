@@ -31,17 +31,17 @@ def _flatten_html(markup):
     return re.sub(r"(?m)^[ \t]+", "", markup)
 
 # ================================================================
-# LOADING PLACEHOLDER
+# LOADING PLACEHOLDER (Centered towards the upper part of the screen)
 # ================================================================
 placeholder = st.empty()
 with placeholder:
     st.markdown(
         """
-        <div style="display:flex; justify-content:center; align-items:center; height:100vh; background:#262626;">
+        <div style="display:flex; justify-content:center; align-items:flex-start; padding-top:22vh; height:100vh; background:#262626; box-sizing:border-box;">
             <div style="text-align:center; color:white; font-family:sans-serif;">
-                <div style="font-size:48px;">🛰️</div>
-                <h1>Loading Crisis Data...</h1>
-                <p>Please wait while we fetch live intelligence.</p>
+                <div style="font-size:52px; margin-bottom:14px;">🛰️</div>
+                <h1 style="margin:0 0 8px 0; font-size:26px; font-weight:800; letter-spacing:0.5px;">Loading Crisis Data...</h1>
+                <p style="margin:0; color:#9ca3af; font-size:14px;">Please wait while we fetch live intelligence.</p>
             </div>
         </div>
         """,
@@ -679,7 +679,7 @@ if BANNER_PATH.exists():
         banner_data = ""
 
 # ================================================================
-# BUILD MAP – ALWAYS DARK TILES
+# BUILD MAP – ALWAYS DARK TILES & DEFAULT ZOOM TO RED PINS
 # ================================================================
 live_pin_items = []
 for alert_idx, item in enumerate(mapped_alerts):
@@ -724,7 +724,7 @@ for alert_idx, item, lat, lon in live_pin_items:
         marker_color = "#ff4b4b"
         border_color = "#ff8080"
 
-    # Popup link now opens in new tab
+    # Popup link opens in new tab
     popup_html = (
         '<div style="font-family:sans-serif;font-size:12px;width:240px;color:#1a1f2c;line-height:1.4;">'
         f'<span style="color:#718096;font-weight:800;font-size:10px;text-transform:uppercase;">'
@@ -748,49 +748,44 @@ for alert_idx, item, lat, lon in live_pin_items:
     )
     marker.add_to(m)
 
-# --- Set map view if banner is set ---
+# --- DEFAULT VIEW: TIGHT ZOOM ON ACTIVE RED PINS ---
+red_pins = [item_tuple for item_tuple in live_pin_items if not item_tuple[1]["is_un_data"]]
+# Exclude generic [20.0, 0.0] fallback coords if specific locations exist
+specific_red_pins = [p for p in red_pins if not (abs(p[2] - 20.0) < 0.01 and abs(p[3] - 0.0) < 0.01)]
+focus_pins = specific_red_pins if specific_red_pins else (red_pins if red_pins else live_pin_items)
+
+reapply_view_js = ""
 if banner_article is not None:
     lat = banner_article["lat"]
     lon = banner_article["lon"]
     m.location = [lat, lon]
     m.options["zoom"] = 8
-else:
-    focus_pin_items = [item_tuple for item_tuple in live_pin_items if not item_tuple[1]["is_un_data"]]
-    if not focus_pin_items:
-        focus_pin_items = live_pin_items
-
-    if live_pin_items:
-        lats = [lat for (_, _, lat, _) in focus_pin_items]
-        lons = [lon for (_, _, _, lon) in focus_pin_items]
-        if len(focus_pin_items) == 1:
-            m.location = [lats[0], lons[0]]
-            m.options["zoom"] = 8
-        else:
-            south = min(lats)
-            north = max(lats)
-            west = min(lons)
-            east = max(lons)
-            lat_span = north - south
-            lon_span = east - west
-            lat_pad = max(1.0, lat_span * 0.08)
-            lon_pad = max(1.5, lon_span * 0.08)
-            south = max(-90.0, south - lat_pad)
-            north = min(90.0, north + lat_pad)
-            west_bound = max(-180.0, west - lon_pad)
-            east_bound = min(180.0, east + lon_pad)
-            m.fit_bounds([[south, west_bound], [north, east_bound]], padding=(10, 10), max_zoom=10)
+    reapply_view_js = f"{m.get_name()}.setView([{lat}, {lon}], 8);"
+elif focus_pins:
+    lats = [lat for (_, _, lat, _) in focus_pins]
+    lons = [lon for (_, _, _, lon) in focus_pins]
+    if len(focus_pins) == 1:
+        m.location = [lats[0], lons[0]]
+        m.options["zoom"] = 6
+        reapply_view_js = f"{m.get_name()}.setView([{lats[0]}, {lons[0]}], 6);"
+    else:
+        south = min(lats)
+        north = max(lats)
+        west = min(lons)
+        east = max(lons)
+        lat_span = max(0.5, north - south)
+        lon_span = max(0.5, east - west)
+        lat_pad = lat_span * 0.05
+        lon_pad = lon_span * 0.05
+        south = max(-85.0, south - lat_pad)
+        north = min(85.0, north + lat_pad)
+        west_bound = max(-180.0, west - lon_pad)
+        east_bound = min(180.0, east + lon_pad)
+        m.fit_bounds([[south, west_bound], [north, east_bound]], padding=(20, 20))
+        reapply_view_js = f"{m.get_name()}.fitBounds([[{south},{west_bound}],[{north},{east_bound}]],{{padding:[20,20]}});"
 
 # --- Map resize fix ---
-if live_pin_items:
-    if banner_article is not None:
-        reapply_view_js = f"{m.get_name()}.setView([{banner_article['lat']}, {banner_article['lon']}], 8);"
-    else:
-        if len(focus_pin_items) == 1:
-            lats = [lat for (_, _, lat, _) in focus_pin_items]
-            lons = [lon for (_, _, _, lon) in focus_pin_items]
-            reapply_view_js = f"{m.get_name()}.setView([{lats[0]}, {lons[0]}], 8);"
-        else:
-            reapply_view_js = f"{m.get_name()}.fitBounds([[{south},{west_bound}],[{north},{east_bound}]],{{padding:[10,10],maxZoom:10}});"
+if live_pin_items and reapply_view_js:
     resize_fix_script = (
         "<script>"
         "function __fixMapView(){try{"
