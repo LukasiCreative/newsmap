@@ -691,8 +691,61 @@ for alert_idx, item in enumerate(mapped_alerts):
     except (TypeError, ValueError):
         continue
 
-m = folium.Map(location=[20.0, 0.0], zoom_start=2, min_zoom=2, max_bounds=True,
-               zoom_control=False, scrollWheelZoom=True, touchZoom=True)
+# Identify all actual red pins with real coordinates
+red_pins = [p for p in live_pin_items if not p[1]["is_un_data"]]
+# Filter out fallback (20.0, 0.0) global coords so they don't stretch the zoom to world level
+real_red_pins = [
+    p for p in red_pins 
+    if not (abs(p[2] - 20.0) < 0.01 and abs(p[3] - 0.0) < 0.01) and p[1].get("location_name", "").lower() != "global"
+]
+target_pins = real_red_pins if real_red_pins else (red_pins if red_pins else live_pin_items)
+
+# Compute initial map center and bounding coordinates
+init_lat, init_lon, init_zoom = 20.0, 0.0, 3
+reapply_view_js = ""
+
+banner_article = None
+if banner_idx is not None and 0 <= banner_idx < len(mapped_alerts):
+    banner_article = mapped_alerts[banner_idx]
+
+if banner_article is not None:
+    init_lat, init_lon = banner_article["lat"], banner_article["lon"]
+    init_zoom = 8
+    reapply_view_js = f"{m.get_name() if 'm' in locals() else 'map'}.setView([{init_lat}, {init_lon}], 8);"
+elif target_pins:
+    lats = [p[2] for p in target_pins]
+    lons = [p[3] for p in target_pins]
+    init_lat = sum(lats) / len(lats)
+    init_lon = sum(lons) / len(lons)
+    
+    if len(target_pins) == 1:
+        init_zoom = 7
+        reapply_view_js = f"__mapObj.setView([{lats[0]}, {lons[0]}], 7);"
+    else:
+        south = min(lats)
+        north = max(lats)
+        west = min(lons)
+        east = max(lons)
+        lat_span = max(0.5, north - south)
+        lon_span = max(0.5, east - west)
+        lat_pad = lat_span * 0.08
+        lon_pad = lon_span * 0.08
+        south = max(-85.0, south - lat_pad)
+        north = min(85.0, north + lat_pad)
+        west_bound = max(-180.0, west - lon_pad)
+        east_bound = min(180.0, east + lon_pad)
+        # Pad bottom to allow space for the bottom ticker overlay
+        reapply_view_js = f"__mapObj.fitBounds([[{south},{west_bound}],[{north},{east_bound}]],{{paddingTopLeft:[20,20],paddingBottomRight:[20,170]}});"
+
+m = folium.Map(
+    location=[init_lat, init_lon],
+    zoom_start=init_zoom,
+    min_zoom=2,
+    max_bounds=True,
+    zoom_control=False,
+    scrollWheelZoom=True,
+    touchZoom=True
+)
 
 folium.TileLayer(
     tiles="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
@@ -712,10 +765,6 @@ m.get_root().html.add_child(
 )
 
 # --- Add markers; clicking a pin pushes its headline into the ticker ---
-banner_article = None
-if banner_idx is not None and 0 <= banner_idx < len(mapped_alerts):
-    banner_article = mapped_alerts[banner_idx]
-
 for alert_idx, item, lat, lon in live_pin_items:
     if item["is_un_data"]:
         marker_color = "#3182ce"
@@ -724,7 +773,7 @@ for alert_idx, item, lat, lon in live_pin_items:
         marker_color = "#ff4b4b"
         border_color = "#ff8080"
 
-    # Popup link opens in new tab
+    # Popup link opens article
     popup_html = (
         '<div style="font-family:sans-serif;font-size:12px;width:240px;color:#1a1f2c;line-height:1.4;">'
         f'<span style="color:#718096;font-weight:800;font-size:10px;text-transform:uppercase;">'
@@ -748,62 +797,34 @@ for alert_idx, item, lat, lon in live_pin_items:
     )
     marker.add_to(m)
 
-# --- DEFAULT VIEW: TIGHT ZOOM ON ACTIVE RED PINS ---
-red_pins = [item_tuple for item_tuple in live_pin_items if not item_tuple[1]["is_un_data"]]
-# Exclude generic [20.0, 0.0] fallback coords if specific locations exist
-specific_red_pins = [p for p in red_pins if not (abs(p[2] - 20.0) < 0.01 and abs(p[3] - 0.0) < 0.01)]
-focus_pins = specific_red_pins if specific_red_pins else (red_pins if red_pins else live_pin_items)
-
-reapply_view_js = ""
-if banner_article is not None:
-    lat = banner_article["lat"]
-    lon = banner_article["lon"]
-    m.location = [lat, lon]
-    m.options["zoom"] = 8
-    reapply_view_js = f"{m.get_name()}.setView([{lat}, {lon}], 8);"
-elif focus_pins:
-    lats = [lat for (_, _, lat, _) in focus_pins]
-    lons = [lon for (_, _, _, lon) in focus_pins]
-    if len(focus_pins) == 1:
-        m.location = [lats[0], lons[0]]
-        m.options["zoom"] = 6
-        reapply_view_js = f"{m.get_name()}.setView([{lats[0]}, {lons[0]}], 6);"
-    else:
-        south = min(lats)
-        north = max(lats)
-        west = min(lons)
-        east = max(lons)
-        lat_span = max(0.5, north - south)
-        lon_span = max(0.5, east - west)
-        lat_pad = lat_span * 0.05
-        lon_pad = lon_span * 0.05
-        south = max(-85.0, south - lat_pad)
-        north = min(85.0, north + lat_pad)
-        west_bound = max(-180.0, west - lon_pad)
-        east_bound = min(180.0, east + lon_pad)
-        m.fit_bounds([[south, west_bound], [north, east_bound]], padding=(20, 20))
-        reapply_view_js = f"{m.get_name()}.fitBounds([[{south},{west_bound}],[{north},{east_bound}]],{{padding:[20,20]}});"
-
-# --- Map resize fix ---
+# --- Map resize & zoom execution fix ---
 if live_pin_items and reapply_view_js:
-    resize_fix_script = (
-        "<script>"
-        "function __fixMapView(){try{"
-        f"{m.get_name()}.invalidateSize();"
-        f"{reapply_view_js}"
-        "}catch(e){}}"
-        "window.addEventListener('load',function(){"
-        "__fixMapView();"
-        "setTimeout(__fixMapView,200);"
-        "setTimeout(__fixMapView,600);"
-        "setTimeout(__fixMapView,1200);"
-        "});"
-        "window.addEventListener('resize',__fixMapView);"
-        "if(window.ResizeObserver){"
-        "new ResizeObserver(__fixMapView).observe(document.body);"
-        "}"
-        "</script>"
-    )
+    map_var_name = m.get_name()
+    js_command = reapply_view_js.replace("__mapObj", map_var_name)
+    resize_fix_script = f"""
+    <script>
+    function __fixMapView(){{
+        try {{
+            var __mapObj = {map_var_name};
+            if (__mapObj) {{
+                __mapObj.invalidateSize();
+                {js_command}
+            }}
+        }} catch(e) {{}}
+    }}
+    window.addEventListener('DOMContentLoaded', __fixMapView);
+    window.addEventListener('load', function() {{
+        __fixMapView();
+        setTimeout(__fixMapView, 100);
+        setTimeout(__fixMapView, 400);
+        setTimeout(__fixMapView, 900);
+    }});
+    window.addEventListener('resize', __fixMapView);
+    if (window.ResizeObserver) {{
+        new ResizeObserver(__fixMapView).observe(document.body);
+    }}
+    </script>
+    """
     m.get_root().html.add_child(folium.Element(resize_fix_script))
 
 # ================================================================
@@ -815,7 +836,7 @@ st_folium(
     width="100%",
     height=600,
     returned_objects=[],
-    key="tactical_map_flush_v31"
+    key="tactical_map_flush_v32"
 )
 
 # Ticker – fixed overlay at bottom
